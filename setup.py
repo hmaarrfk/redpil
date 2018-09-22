@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from setuptools import setup, find_packages
+import versioneer
 
 with open('README.md') as readme_file:
     readme = readme_file.read()
@@ -34,6 +35,7 @@ setup(
     packages=find_packages(include=['redpil']),
     tests_require=test_requirements,
     url='https://github.com/hmaarrfk/redpil',
-    version='0.0.1',
+    version=versioneer.get_version(),
+    cmdclass=versioneer.get_cmdclass(),
     zip_safe=False,
 )
