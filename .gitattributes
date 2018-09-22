@@ -1,1 +1,2 @@
 redpil/_version.py export-subst
+redpil/_static_version.py export-subst

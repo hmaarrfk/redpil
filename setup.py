@@ -8,6 +8,19 @@ with open('README.md') as readme_file:
 with open('HISTORY.md') as history_file:
     history = history_file.read()
 
+# Loads version.py module without importing the whole package.
+def get_version_and_cmdclass(package_path):
+    import os
+    from importlib.util import module_from_spec, spec_from_file_location
+    spec = spec_from_file_location('version',
+                                   os.path.join(package_path, '_version.py'))
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.__version__, module.cmdclass
+
+
+version, cmdclass = get_version_and_cmdclass('redpil')
+
 requirements = ['numpy', ]
 
 test_requirements = ['pytest', ]
@@ -35,7 +48,7 @@ setup(
     packages=find_packages(include=['redpil']),
     tests_require=test_requirements,
     url='https://github.com/hmaarrfk/redpil',
-    version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass(),
+    version=version,
+    cmdclass=cmdclass,
     zip_safe=False,
 )
