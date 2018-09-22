@@ -15,13 +15,11 @@ Join the wonderland of python, and decode all your images in a numpy compatible 
 Features
 --------
 
-* TODO
-
-Credits
--------
-
-This package was created with [Cookiecutter](https://github.com/audreyr/cookiecutter)
-and the
-[hmaarrfk/cookiecutter-pypackage](https://github.com/hmaarrfk/cookiecutter-pypackage)
-project template.
-
+| Fileformat | Version | Capable | In scope | Reference                       |
+|:-----------|:--------|:--------|:---------|:--------------------------------|
+| BMP        |         | No      | Yes      | [Wikipedia](https://en.wikipedia.org/wiki/BMP_file_format) |
+| JPEG       |         | No      | Yes      |                                 |
+| JPEG2000   |         | No      | Yes      |                                 |
+| GIF        |         | No      | Yes      |                                 |
+| PNG        |         | No      | Yes      |                                 |
+| SVG        |         | No      | Maybe    |                                 |
