@@ -12,7 +12,8 @@ class BMPSuite:
     An example benchmark that times the performance of various kinds
     of iterating over dictionaries in Python.
     """
-    params = ([(128, 128), (1024, 1024), (2048, 4096)], ('pillow', 'redpil'))
+    params = ([(128, 128), (1024, 1024), (2048, 4096), (32768, 32768)],
+              ['pillow', 'redpil'])
     param_names = ['shape', 'mode']
 
     def setup(self, shape, mode):
