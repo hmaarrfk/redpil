@@ -60,15 +60,9 @@ def imwrite(filename, image):
         bits_per_pixel = image.itemsize * 8
         # Not correct for color images
         # BMP wants images to be padded to a multiple of 4
-        row_size = (bits_per_pixel * image.shape[1] + 31) // 32
+        row_size = (bits_per_pixel * image.shape[1] + 31) // 32 * 4
         image_size = row_size * image.shape[0]
 
-        data = np.memmap(f, dtype=np.uint8, mode='w+',
-                         shape=(image.shape[0], row_size * 4), offset=offset)
-        offset += data.nbytes
-
-        # Now slice just the part of the image that we actually write to.
-        data = data[:image.shape[0], :image.shape[1]]
 
         header['file_offset_to_pixelarray'] = (header.nbytes +
                                                info_header.nbytes +
@@ -92,4 +86,12 @@ def imwrite(filename, image):
         info_header['important_color_count'] = 0
 
         color_table[...] = gray_color_table
-        data[...] = image
+        
+        f.seek(offset)
+        if row_size == image.shape[1]:
+            f.write(np.ascontiguousarray(image).data)
+        else:
+            # Now slice just the part of the image that we actually write to.
+            data = np.empty((image.shape[0], row_size), dtype=np.uint8)
+            data[:image.shape[0], :image.shape[1]] = image
+            f.write(data.data)
