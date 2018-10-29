@@ -1,5 +1,3 @@
-# Write the benchmarking functions here.
-# See "Writing benchmarks" in the asv docs for more information.
 import numpy as np
 from PIL import Image
 from tempfile import mkdtemp
@@ -8,10 +6,6 @@ from pathlib import Path
 import shutil
 
 class BMPSuite:
-    """
-    An example benchmark that times the performance of various kinds
-    of iterating over dictionaries in Python.
-    """
     params = ([(128, 128), (1024, 1024),
                (2048, 4096), (2**5 * 1024, 2 ** 5 *1024)],
               ['pillow', 'redpil'])
@@ -22,7 +16,6 @@ class BMPSuite:
         self.tmpdir = Path(mkdtemp())
         self.filename = self.tmpdir / 'saved.bmp'
         imwrite(self.filename, self.img)
-
 
     def time_save(self, shape, mode):
         if mode == 'pillow':
