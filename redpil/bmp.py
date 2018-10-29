@@ -142,21 +142,17 @@ def imread(filename):
                 "We only handle images with compression format BI_RGB. "
                 "Got compression format {}.".format(compression))
         bits_per_pixel = info_header['bits_per_pixel'][0]
-        if bits_per_pixel not in [1, 4, 8]:
+        if bits_per_pixel not in [8, 24, 1, 4]:
             raise NotImplementedError(
-                "We only support images with 1, 4, or 8 bits per pixel. Got "
-                "{} bits per pixel.".format(bits_per_pixel)
+                "We only support images with 1, 4, 8, or 24 bits per pixel. "
+                "Got {} bits per pixel.".format(bits_per_pixel)
             )
 
         color_table_max_shape = int(header['file_offset_to_pixelarray'][0] -
                                     header.nbytes - info_header.nbytes)
         color_table_count = min(color_table_max_shape, 2 ** bits_per_pixel * 4)
-        if color_table_count:
-            color_table = np.fromfile(
-                f, dtype='<u1', count=color_table_count)
-            color_table = color_table.reshape(-1, 4)
-        else:
-            color_table = None
+        color_table = np.fromfile(f, dtype='<u1', count=color_table_count)
+        color_table = color_table.reshape(-1, 4)
 
         row_size = (bits_per_pixel * shape[1] + 31) // 32 * 4
         image_size = row_size * shape[0]
@@ -171,7 +167,6 @@ def imread(filename):
 
         # do a color table lookup
         if compression == 'BI_RGB':
-
             color_table = color_table[..., :3]
             if bits_per_pixel == 8:
                 gray_color_table = gray_color_table_uint8
@@ -188,6 +183,10 @@ def imread(filename):
                 out = color_index[:, 1::2]
                 np.bitwise_and(image[:, :out.shape[1]], 0x0F, out=out)
                 gray_color_table = gray_color_table_uint4
+            elif bits_per_pixel == 24:
+                image = image.reshape(image.shape[0], -1, 3)
+                # image format is returned as BGR, not RGB
+                return image[:, :shape[1], ::-1]
 
             # Compress the color table if applicable
             if np.all(color_table[:, 0:1] == color_table[:, 1:3]):
