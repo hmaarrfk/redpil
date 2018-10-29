@@ -29,35 +29,51 @@ compression_types = ['BI_RGB', 'BI_RLE8', 'BI_RLE4', 'BI_BITFIELDS', 'BI_JPEG',
                      'BI_PNG', 'BI_ALPHABITFIELDS', 'BI_CMYK', 'BI_CMYKRLE8'
                      'BI_CMYKRLE4']
 
-gray_color_table = np.arange(256, dtype='<u1')
-gray_color_table = np.stack([gray_color_table,
-                             gray_color_table,
-                             gray_color_table,
-                             np.full_like(gray_color_table,
-                                          fill_value=0, dtype='<u1')], axis=1)
+gray_color_table_uint8 = np.arange(256, dtype='<u1')
+gray_color_table_uint8 = np.stack([gray_color_table_uint8,
+                                   gray_color_table_uint8,
+                                   gray_color_table_uint8,
+                                   np.full_like(gray_color_table_uint8,
+                                                fill_value=0, dtype='<u1')],
+                                  axis=1)
 
+gray_color_table_bool = np.asarray([0, 255], dtype='<u1')
+gray_color_table_bool = np.stack([gray_color_table_bool,
+                                  gray_color_table_bool,
+                                  gray_color_table_bool,
+                                  np.full_like(gray_color_table_bool,
+                                               fill_value=0, dtype='<u1')],
+                                 axis=1)
 def imwrite(filename, image):
     image = np.atleast_2d(image)
     if image.ndim > 2:
         raise NotImplementedError('Only monochrome images are supported.')
 
-    if image.dtype != np.uint8:
-        raise NotImplementedError('Only uint8 images are supported.')
+    if image.dtype == np.uint8:
+        color_table = gray_color_table_uint8
+    elif image.dtype == np.bool:
+        color_table = gray_color_table_bool
+        packed_image = np.packbits(image, axis=1)
+    else:
+        raise NotImplementedError('Only uint8 and bool images are supported.')
+
     header = np.zeros(1, dtype=header_t)
     info_header = np.empty(1, dtype=info_header_t)
 
     header['signature'] = 'BM'.encode()
 
-    bits_per_pixel = image.itemsize * 8
+    if image.dtype == np.bool:
+        bits_per_pixel = 1
+    else:
+        bits_per_pixel = image.itemsize * 8
     # Not correct for color images
     # BMP wants images to be padded to a multiple of 4
     row_size = (bits_per_pixel * image.shape[1] + 31) // 32 * 4
     image_size = row_size * image.shape[0]
 
-
     header['file_offset_to_pixelarray'] = (header.nbytes +
                                            info_header.nbytes +
-                                           gray_color_table.nbytes)
+                                           color_table.nbytes)
 
     header['filesize'] = (header['file_offset_to_pixelarray'] + image_size)
 
@@ -79,7 +95,7 @@ def imwrite(filename, image):
     with open(filename, 'bw+') as f:
         f.write(header)
         f.write(info_header)
-        f.write(gray_color_table)
+        f.write(color_table)
         if row_size == image.shape[1]:
             # Small optimization when the image is a multiple of 4 bytes
             # it actually avoids a full memory copy, so it is quite useful
@@ -87,7 +103,11 @@ def imwrite(filename, image):
         else:
             # Now slice just the part of the image that we actually write to.
             data = np.empty((image.shape[0], row_size), dtype=np.uint8)
-            data[:image.shape[0], :image.shape[1]] = image
+            if image.dtype != np.bool:
+                data[:image.shape[0], :image.shape[1]] = image
+            else:
+                data[:packed_image.shape[0],
+                     :packed_image.shape[1]] = packed_image
             f.write(data.data)
 
 
@@ -128,7 +148,6 @@ def imread(filename):
         f.seek(header['file_offset_to_pixelarray'][0])
         image = np.fromfile(f, dtype='<u1',
                             count=image_size).reshape(-1, row_size)
-        image = image[:shape[0], :shape[1]]
         # BMPs are saved typically as the last row first.
         # Except if the image height is negative
         if info_header['image_height'] > 0:
@@ -143,13 +162,14 @@ def imread(filename):
 
             if bits_per_pixel == 1:
                 image = np.unpackbits(image, axis=1).astype(np.bool)
-                if np.all(color_table == [0, 255]):
-                    return image
-            elif bits_per_pixel == 8:
-                if not np.all(color_table == gray_color_table[:, 0]):
-                    return image
+                gray_color_table = gray_color_table_bool
+            else:
+                gray_color_table = gray_color_table_uint8
 
-            image = color_table[image]
-
+            image = image[:shape[0], :shape[1]]
+            if not np.all(color_table == gray_color_table[:, 0]):
+                image = color_table[image]
+        else:
+            raise NotImplementedError('How did you get here')
 
     return image

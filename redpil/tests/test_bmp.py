@@ -21,7 +21,7 @@ def test_failers(tmpdir):
 
 @pytest.mark.parametrize('shape', [(4, 4), (7, 7), (21, 7)])
 @pytest.mark.parametrize('backend', ['pillow', 'redpil'])
-def test_zero_image(tmpdir, shape, backend):
+def test_uint8_image(tmpdir, shape, backend):
     tmpfile = os.path.join(str(tmpdir), 'test.bmp')
 
     img = np.random.randint(255, size=shape, dtype=np.uint8)
@@ -32,4 +32,21 @@ def test_zero_image(tmpdir, shape, backend):
     else:
         img_read = imread(tmpfile)
 
+    assert img.dtype == img_read.dtype
+    assert_array_equal(img, img_read)
+
+@pytest.mark.parametrize('shape', [(4, 4), (7, 7), (21, 7),
+                                   (121, 121), (128, 128)])
+@pytest.mark.parametrize('backend', ['pillow', 'redpil'])
+def test_bool_image(tmpdir, shape, backend):
+    tmpfile = os.path.join(str(tmpdir), 'test.bmp')
+
+    img = np.random.randint(1, size=shape, dtype=np.bool)
+    imwrite(tmpfile, img)
+
+    if backend == 'pillow':
+        img_read = np.asarray(Image.open(tmpfile))
+    else:
+        img_read = imread(tmpfile)
+    assert img.dtype == img_read.dtype
     assert_array_equal(img, img_read)

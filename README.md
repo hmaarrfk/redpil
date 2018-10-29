@@ -11,7 +11,9 @@ Pillow's memory system isn't compatible with numpy. Meaning that everytime you
 read or write images, they get copied to a Pillow array, then again to a numpy
 array.
 
-For large images, this is a serious bottleneck.
+For large images, this is a serious bottleneck. The performance of this
+library is optimized for cases where the memory representation of the numpy
+array is the same as that of the data in the bmp image.
 
 * Documentation: https://redpil.readthedocs.io.
 
