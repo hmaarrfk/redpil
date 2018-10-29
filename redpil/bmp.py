@@ -92,7 +92,6 @@ def imwrite(filename, image):
 
 
 def imread(filename):
-    header = np.zeros(1, dtype=header_t)
     with open(filename, 'br') as f:
         header = np.fromfile(f, dtype=header_t, count=1)
         if header['signature'] != 'BM'.encode():
