@@ -35,11 +35,12 @@ passing_files = ['pal1.bmp', 'pal1bg.bmp', 'pal1wb.bmp',
                  'pal8-0.bmp', 'pal8.bmp', 'pal8gs.bmp',
                  'pal8nonsquare.bmp', 'pal8topdown.bmp', 'pal8w124.bmp',
                  'pal8w125.bmp', 'pal8w126.bmp',
-                 'rgb24.bmp', 'rgb32.bmp']
+                 'rgb16.bmp',
+                 'rgb24.bmp', 'rgb24pal.bmp', 'rgb32.bmp']
 non_passing_files = ['pal4rle.bmp', 'pal8os2.bmp', 'pal8rle.bmp',
                      'pal8v4.bmp', 'pal8v5.bmp', 'rgb16-565.bmp',
-                     'rgb16-565pal.bmp', 'rgb16.bmp', 'rgb16bfdef.bmp',
-                     'rgb24pal.bmp', 'rgb32bf.bmp',
+                     'rgb16-565pal.bmp', 'rgb16bfdef.bmp',
+                     'rgb32bf.bmp',
                      'rgb32bfdef.bmp',]
 
 # @pytest.mark.xfail
