@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 from PIL import Image
 from numpy.testing import assert_array_equal
+import imageio
 
 
 parametrize = pytest.mark.parametrize
@@ -29,10 +30,23 @@ passing_pillow_files.remove('rgb32bf.bmp')
 # Pillow OSError: Unsupported BMP compression (1)
 passing_pillow_files.remove('pal8rle.bmp')
 
+passing_files = ['pal1.bmp','pal8-0.bmp', 'pal8.bmp', 'pal8gs.bmp',
+                 'pal8nonsquare.bmp', 'pal8topdown.bmp', 'pal8w124.bmp',
+                 'pal8w125.bmp', 'pal8w126.bmp',]
+non_passing_files = ['pal1bg.bmp', 'pal1wb.bmp', 'pal4.bmp', 'pal4gs.bmp',
+                     'pal4rle.bmp', 'pal8os2.bmp', 'pal8rle.bmp',
+                     'pal8v4.bmp', 'pal8v5.bmp', 'rgb16-565.bmp',
+                     'rgb16-565pal.bmp', 'rgb16.bmp', 'rgb16bfdef.bmp',
+                     'rgb24.bmp', 'rgb24pal.bmp', 'rgb32.bmp', 'rgb32bf.bmp',
+                     'rgb32bfdef.bmp',]
+
 # @pytest.mark.xfail
-@parametrize('filename', all_good_files)
+@parametrize('filename', passing_files)
 def test_test(filename):
     imagepath = good_folder / filename
-    img_pil = np.asarray(Image.open(imagepath))
+    # img_pil = np.asarray(Image.open(imagepath))
+    # TODO: eventually I want imageio to use redpil, therefore I will have to
+    # force a desired backend.
+    img_pil = imageio.imread(imagepath)
     img = imread(imagepath)
-    # assert_array_equal(img, img_pil)
+    assert_array_equal(img, img_pil)
