@@ -1,9 +1,7 @@
 Welcome to redpil's documentation!
 ==================================
 
-
 .. mdinclude:: ../README.md
-
 
 Contents
 ========

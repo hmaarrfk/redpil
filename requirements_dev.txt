@@ -2,6 +2,5 @@ wheel
 flake8
 tox
 coverage
-Sphinx
 pytest
-pytest-runner
+pillow
