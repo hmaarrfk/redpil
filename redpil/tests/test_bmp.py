@@ -1,4 +1,4 @@
-from redpil.bmp import imwrite
+from redpil.bmp import imwrite, imread
 
 import numpy as np
 import pytest
@@ -24,4 +24,15 @@ def test_zero_image(tmpdir, shape):
     imwrite(tmpfile, img)
 
     img_read = np.asarray(Image.open(tmpfile))
+    assert_array_equal(img, img_read)
+
+
+@pytest.mark.parametrize('shape', [(4, 4), (7, 7), (21, 7)])
+def test_zero_image(tmpdir, shape):
+    tmpfile = Path(tmpdir) / 'test.bmp'
+
+    img = np.random.randint(255, size=shape, dtype=np.uint8)
+    imwrite(tmpfile, img)
+
+    img_read = imread(tmpfile)
     assert_array_equal(img, img_read)

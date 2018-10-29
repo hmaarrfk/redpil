@@ -1,4 +1,5 @@
 import numpy as np
+from io import SEEK_CUR
 
 header_t = np.dtype([
     ('signature', '|S2'),
@@ -10,8 +11,8 @@ header_t = np.dtype([
 
 info_header_t = np.dtype([
     ('header_size', '<u4'),
-    ('image_width', '<u4'),
-    ('image_height', '<u4'),
+    ('image_width', '<i4'),
+    ('image_height', '<i4'),
     ('image_planes', '<u2'),
     ('bits_per_pixel', '<u2'),
     ('compression', '<u4'),
@@ -86,3 +87,58 @@ def imwrite(filename, image):
             data = np.empty((image.shape[0], row_size), dtype=np.uint8)
             data[:image.shape[0], :image.shape[1]] = image
             f.write(data.data)
+
+
+def imread(filename):
+    header = np.zeros(1, dtype=header_t)
+    with open(filename, 'br') as f:
+        header = np.fromfile(f, dtype=header_t, count=1)
+        if header['signature'] != 'BM'.encode():
+            raise ValueError('Provided file is not a bmp file.')
+        header_size = np.fromfile(f, dtype=info_header_t['header_size'], count=1)
+        if header_size != info_header_t.itemsize:
+            raise NotImplementedError(
+                'We only implement basic gray scale images.')
+        f.seek(-info_header_t['header_size'].itemsize, SEEK_CUR)
+        info_header = np.fromfile(f, dtype=info_header_t, count=1)
+
+        shape = (int(abs(info_header['image_height'])), int(info_header['image_width']))
+        if info_header['image_planes'] != 1:
+            raise NotImplementedError(
+                "We don't know how to handle more than 1 image plane. "
+                "Got {} image planes.".format(info_header['image_planes']))
+
+        if info_header['bits_per_pixel'] != 8:
+            raise NotImplementedError(
+                "We don't know how to handle images with more or less than 8 "
+                "bits per pixel. Got {} bits per pixels".format(
+                    info_header['bits_per_pixel']))
+
+        if compression_types[info_header['compression'][0]] != 'BI_RGB':
+            raise NotImplementedError(
+                "We only handle images with compression format BI_RGB. "
+                "Got compression format {}.".format(
+                    compression_types(info_header['compression'])))
+
+        color_table = np.fromfile(
+            f, dtype='<u1', count=2 ** info_header['bits_per_pixel'][0] * 4)
+        color_table = color_table.reshape(-1, 4)
+
+        if not np.all(color_table == gray_color_table):
+            raise NotImplementedError(
+                'We only handle the case where the color table is that of a '
+                'grayscale image.')
+
+        row_size = (info_header['bits_per_pixel'][0] * shape[1] + 31) // 32 * 4
+        image_size = row_size * shape[0]
+
+        f.seek(header['file_offset_to_pixelarray'][0])
+        image = np.fromfile(f, dtype='<u1',
+                            count=image_size).reshape(-1, row_size)
+        image = image[:shape[0], :shape[1]]
+        # BMPs are saved typically as the last row first.
+        # Except if the image height is negative
+        if info_header['image_height'] > 0:
+            image = image[::-1]
+
+    return image
