@@ -1,8 +1,5 @@
-redpil package
-==============
-
-Module contents
----------------
+API
+===
 
 In the future, when the API is more established, we will support a few
 functions, that provided the filename and the extension, will attempt to infer
@@ -12,10 +9,6 @@ which plugin to call. For now, these functions do nothing.
     :members:
     :undoc-members:
     :show-inheritance:
-
-
-Submodules
-----------
 
 redpil.bmp module
 -----------------
