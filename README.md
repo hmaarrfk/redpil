@@ -31,8 +31,8 @@ For large images, this is a serious bottleneck.
 ## Benchmarks
 
 I don't have a fancy benchmarking service like scikit-image or dask has, but
-here are the benchmarks results compared to a PILLOW backend. This is running
-on my SSD, a Samsung Evo 960 which claims it can write at 1.8GB/s. This is
+here are the benchmarks results compared to a PIL backend. This is running
+on my SSD, a Samsung 960 Pro which claims it can write at 1.8GB/s. This is
 pretty close to what `redpil` achieves.
 
 
