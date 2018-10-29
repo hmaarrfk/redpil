@@ -4,10 +4,13 @@ import numpy as np
 import pytest
 from PIL import Image
 from numpy.testing import assert_array_equal
-from pathlib import Path
+
+# Pathlib doesn't work well in python 3.5
+# from pathlib import Path
+import os
 
 def test_failers(tmpdir):
-    tmpfile = Path(tmpdir) / 'test.bmp'
+    tmpfile = os.path.join(tmpdir, 'test.bmp')
     img = np.zeros((4, 4), dtype=np.float32)
     with pytest.raises(NotImplementedError):
         imwrite(tmpfile, img)
@@ -17,22 +20,16 @@ def test_failers(tmpdir):
         imwrite(tmpfile, img)
 
 @pytest.mark.parametrize('shape', [(4, 4), (7, 7), (21, 7)])
-def test_zero_image(tmpdir, shape):
-    tmpfile = Path(tmpdir) / 'test.bmp'
+@pytest.mark.parametrize('backend', ['pillow', 'redpil'])
+def test_zero_image(tmpdir, shape, backend):
+    tmpfile = os.path.join(tmpdir, 'test.bmp')
 
     img = np.random.randint(255, size=shape, dtype=np.uint8)
     imwrite(tmpfile, img)
 
-    img_read = np.asarray(Image.open(tmpfile))
-    assert_array_equal(img, img_read)
+    if backend == 'pillow':
+        img_read = np.asarray(Image.open(tmpfile))
+    else:
+        img_read = imread(tmpfile)
 
-
-@pytest.mark.parametrize('shape', [(4, 4), (7, 7), (21, 7)])
-def test_zero_image(tmpdir, shape):
-    tmpfile = Path(tmpdir) / 'test.bmp'
-
-    img = np.random.randint(255, size=shape, dtype=np.uint8)
-    imwrite(tmpfile, img)
-
-    img_read = imread(tmpfile)
     assert_array_equal(img, img_read)
