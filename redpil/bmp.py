@@ -155,18 +155,19 @@ def imread(filename):
         # do a color table lookup
         if compression == 'BI_RGB':
             color_table = color_table[..., :3]
-            # Compress the color table if applicable
-            if np.all(color_table[:, 0:1] == color_table[:, 1:3]):
-                color_table = color_table[:, 0]
-
             if bits_per_pixel == 1:
                 image = np.unpackbits(image, axis=1).astype(np.bool)
                 gray_color_table = gray_color_table_bool
             else:
                 gray_color_table = gray_color_table_uint8
 
+            # Compress the color table if applicable
+            if np.all(color_table[:, 0:1] == color_table[:, 1:3]):
+                color_table = color_table[:, 0]
+                gray_color_table = gray_color_table[:, 0]
+
             image = image[:shape[0], :shape[1]]
-            if not np.all(color_table == gray_color_table[:, 0]):
+            if not np.array_equal(color_table, gray_color_table):
                 image = color_table[image]
         else:
             raise NotImplementedError('How did you get here')
