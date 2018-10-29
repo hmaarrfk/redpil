@@ -33,7 +33,7 @@ class BMPSuite:
     def time_load(self, shape, mode):
         if mode == 'pillow':
             try:
-                np.asarray(Image.open(self.filename))
+                np.asarray(Image.open(self.filename).convert('L'))
             except Image.DecompressionBombError:
                 pass
         elif mode == 'imageio':
