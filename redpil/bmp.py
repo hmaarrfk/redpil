@@ -133,8 +133,7 @@ def imread(filename):
         if compression != 'BI_RGB':
             raise NotImplementedError(
                 "We only handle images with compression format BI_RGB. "
-                "Got compression format {}.".format(
-                    compression_types(info_header['compression'])))
+                "Got compression format {}.".format(compression))
 
         color_table = np.fromfile(
             f, dtype='<u1', count=2 ** info_header['bits_per_pixel'][0] * 4)
