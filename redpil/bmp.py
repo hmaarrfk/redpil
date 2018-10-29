@@ -25,6 +25,9 @@ info_header_t = np.dtype([
     ('important_color_count', '<u4'),
 ])
 
+header_names = {'BITMAPINFOHEADER': 40,
+                'BITMAPV3INFOHEADER': 56}
+
 compression_types = ['BI_RGB', 'BI_RLE8', 'BI_RLE4', 'BI_BITFIELDS', 'BI_JPEG',
                      'BI_PNG', 'BI_ALPHABITFIELDS', 'BI_CMYK', 'BI_CMYKRLE8'
                      'BI_CMYKRLE4']
@@ -142,10 +145,10 @@ def imread(filename):
                 "We only handle images with compression format BI_RGB. "
                 "Got compression format {}.".format(compression))
         bits_per_pixel = info_header['bits_per_pixel'][0]
-        if bits_per_pixel not in [8, 24, 1, 4]:
+        if bits_per_pixel not in [8, 24, 32, 1, 4]:
             raise NotImplementedError(
-                "We only support images with 1, 4, 8, or 24 bits per pixel. "
-                "Got {} bits per pixel.".format(bits_per_pixel)
+                "We only support images with 1, 4, 8, 24, or 32 bits per "
+                "pixel. Got {} bits per pixel.".format(bits_per_pixel)
             )
 
         color_table_max_shape = int(header['file_offset_to_pixelarray'][0] -
@@ -163,7 +166,7 @@ def imread(filename):
         # BMPs are saved typically as the last row first.
         # Except if the image height is negative
         if info_header['image_height'] > 0:
-            image = image[::-1]
+            image = image[::-1, :]
 
         # do a color table lookup
         if compression == 'BI_RGB':
@@ -187,6 +190,15 @@ def imread(filename):
                 image = image.reshape(image.shape[0], -1, 3)
                 # image format is returned as BGR, not RGB
                 return image[:, :shape[1], ::-1]
+            elif bits_per_pixel == 32:
+                image = image.reshape(image.shape[0], -1, 4)
+                # image format is returned as BGRA, not RGBA
+                # this is actually quite costly
+                image[:, :, [2, 0]] = image[:, :, [0, 2]]
+                # Alpha only exists in BITMAPV3INFOHEADER and later
+                if info_header['header_size'] < header_names['BITMAPV3INFOHEADER']:
+                    image[:, :, 3] = 255
+                return image
 
             # Compress the color table if applicable
             if np.all(color_table[:, 0:1] == color_table[:, 1:3]):
