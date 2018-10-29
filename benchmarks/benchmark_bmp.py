@@ -3,12 +3,13 @@ from PIL import Image
 from tempfile import mkdtemp
 from redpil.bmp import imwrite, imread
 from pathlib import Path
+import imageio
 import shutil
 
 class BMPSuite:
     params = ([(128, 128), (1024, 1024),
                (2048, 4096), (2**5 * 1024, 2 ** 5 *1024)],
-              ['pillow', 'redpil'])
+              ['redpil', 'pillow', 'imageio'])
     param_names = ['shape', 'mode']
 
     def setup(self, shape, mode):
@@ -22,6 +23,9 @@ class BMPSuite:
             p = Image.fromarray(self.img)
             filename = self.tmpdir / 'pillow.bmp'
             p.save(filename)
+        elif mode == 'imageio':
+            filename = self.tmpdir / 'imageio.bmp'
+            imageio.imwrite(filename, self.img)
         else:
             filename = self.tmpdir / 'redpil.bmp'
             imwrite(filename, self.img)
@@ -32,6 +36,8 @@ class BMPSuite:
                 np.asarray(Image.open(self.filename))
             except Image.DecompressionBombError:
                 pass
+        elif mode == 'imageio':
+            imread(self.filename)
         else:
             imread(self.filename)
 
