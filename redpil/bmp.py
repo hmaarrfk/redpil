@@ -183,11 +183,10 @@ def imread(filename):
                 color_index = color_index[:shape[0], :shape[1]]
             elif bits_per_pixel == 4:
                 color_index = np.zeros(shape, dtype=np.uint8)
-                np.right_shift(image, 4, out=color_index[:, 0::2])
-                if shape[1] % 2 == 0:
-                    np.bitwise_and(image[:, :], 0x0F, out=color_index[:, 1::2])
-                else:
-                    np.bitwise_and(image[:, :-1], 0x0F, out=color_index[:, 1::2])
+                out = color_index[:, 0::2]
+                np.right_shift(image[:, :out.shape[1]], 4, out=out)
+                out = color_index[:, 1::2]
+                np.bitwise_and(image[:, :out.shape[1]], 0x0F, out=out)
                 gray_color_table = gray_color_table_uint4
 
             # Compress the color table if applicable
