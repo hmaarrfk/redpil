@@ -134,12 +134,17 @@ def imread(filename):
             raise NotImplementedError(
                 "We only handle images with compression format BI_RGB. "
                 "Got compression format {}.".format(compression))
-
+        bits_per_pixel = info_header['bits_per_pixel'][0]
+        if bits_per_pixel not in [1, 8]:
+            raise NotImplementedError(
+                "We only support images with 1 or 8 bits per pixel. Got "
+                "{} bits per pixel.".format(bits_per_pixel)
+            )
         color_table = np.fromfile(
-            f, dtype='<u1', count=2 ** info_header['bits_per_pixel'][0] * 4)
+            f, dtype='<u1', count=2 ** bits_per_pixel * 4)
         color_table = color_table.reshape(-1, 4)
 
-        bits_per_pixel = info_header['bits_per_pixel'][0]
+
 
         row_size = (bits_per_pixel * shape[1] + 31) // 32 * 4
         image_size = row_size * shape[0]

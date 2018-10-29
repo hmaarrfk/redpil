@@ -20,9 +20,6 @@ all_good_images.remove(good_folder / 'rgb32bf.bmp')
 # Pillow OSError: Unsupported BMP compression (1)
 all_good_images.remove(good_folder / 'pal8rle.bmp')
 
-# This one segfaults redpil.... How is that even possible?
-all_good_images.remove(good_folder / 'rgb32.bmp')
-
 # @pytest.mark.xfail
 @parametrize('imagepath', all_good_images)
 def test_test(imagepath):
