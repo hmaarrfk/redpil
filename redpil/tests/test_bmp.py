@@ -28,7 +28,7 @@ def test_uint8_image(tmpdir, shape, backend):
     imwrite(tmpfile, img)
 
     if backend == 'pillow':
-        img_read = np.asarray(Image.open(tmpfile))
+        img_read = np.asarray(Image.open(tmpfile).convert('L'))
     else:
         img_read = imread(tmpfile)
 
@@ -41,12 +41,19 @@ def test_uint8_image(tmpdir, shape, backend):
 def test_bool_image(tmpdir, shape, backend):
     tmpfile = os.path.join(str(tmpdir), 'test.bmp')
 
-    img = np.random.randint(1, size=shape, dtype=np.bool)
+    img = np.random.randint(2, size=shape, dtype=np.bool)
+    img[0, 0] = False
+    img[-1, -1] = True
+    print(img)
     imwrite(tmpfile, img)
 
     if backend == 'pillow':
-        img_read = np.asarray(Image.open(tmpfile))
+        img_read = np.asarray(Image.open(tmpfile).convert('L'))
     else:
         img_read = imread(tmpfile)
-    assert img.dtype == img_read.dtype
-    assert_array_equal(img, img_read)
+    print(img_read)
+    assert img_read[0, 0] == 0
+    assert img_read[-1, -1] == 255
+
+    color_pallet = np.asarray([0, 255], dtype=np.uint8)
+    assert_array_equal(color_pallet[img.astype(np.uint8)], img_read)

@@ -51,6 +51,7 @@ def imwrite(filename, image):
 
     if image.dtype == np.uint8:
         color_table = gray_color_table_uint8
+        packed_image = image
     elif image.dtype == np.bool:
         color_table = gray_color_table_bool
         packed_image = np.packbits(image, axis=1)
@@ -96,18 +97,16 @@ def imwrite(filename, image):
         f.write(header)
         f.write(info_header)
         f.write(color_table)
-        if row_size == image.shape[1]:
+        if row_size == packed_image.shape[1]:
             # Small optimization when the image is a multiple of 4 bytes
             # it actually avoids a full memory copy, so it is quite useful
-            f.write(np.ascontiguousarray(image).data)
+            f.write(np.ascontiguousarray(packed_image).data)
         else:
             # Now slice just the part of the image that we actually write to.
             data = np.empty((image.shape[0], row_size), dtype=np.uint8)
-            if image.dtype != np.bool:
-                data[:image.shape[0], :image.shape[1]] = image
-            else:
-                data[:packed_image.shape[0],
-                     :packed_image.shape[1]] = packed_image
+
+            data[:packed_image.shape[0],
+                 :packed_image.shape[1]] = packed_image
             f.write(data.data)
 
 
@@ -164,12 +163,16 @@ def imread(filename):
 
         # do a color table lookup
         if compression == 'BI_RGB':
+
             color_table = color_table[..., :3]
             if bits_per_pixel == 1:
-                image = np.unpackbits(image, axis=1).astype(np.bool)
+                image = np.unpackbits(image, axis=1)
                 gray_color_table = gray_color_table_bool
             else:
                 gray_color_table = gray_color_table_uint8
+            # These images are padded, make sure you slice them after unpacking
+            # them
+            image = image[:shape[0], :shape[1]]
 
             # Compress the color table if applicable
             if np.all(color_table[:, 0:1] == color_table[:, 1:3]):
@@ -179,8 +182,7 @@ def imread(filename):
                 # Color table is provided in BGR, not RGB
                 color_table = color_table[:, ::-1]
 
-            image = image[:shape[0], :shape[1]]
-            if not np.array_equal(color_table, gray_color_table):
+            if bits_per_pixel < 8 or not np.array_equal(color_table, gray_color_table):
                 image = color_table[image]
         else:
             raise NotImplementedError('How did you get here')

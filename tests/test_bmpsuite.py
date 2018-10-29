@@ -44,9 +44,12 @@ non_passing_files = ['pal1bg.bmp', 'pal1wb.bmp', 'pal4.bmp', 'pal4gs.bmp',
 @parametrize('filename', passing_files)
 def test_test(filename):
     imagepath = good_folder / filename
-    # img_pil = np.asarray(Image.open(imagepath))
-    # TODO: eventually I want imageio to use redpil, therefore I will have to
-    # force a desired backend.
-    img_pil = imageio.imread(imagepath)
     img = imread(imagepath)
+    img_pil = Image.open(imagepath)
+    if img.ndim == 3:
+        img_pil = img_pil.convert('RGB')
+    else:
+        img_pil = img_pil.convert('L')
+
+    img_pil = np.asarray(img_pil)
     assert_array_equal(img, img_pil)
