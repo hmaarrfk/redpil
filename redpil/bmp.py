@@ -25,8 +25,19 @@ info_header_t = np.dtype([
     ('important_color_count', '<u4'),
 ])
 
-header_names = {'BITMAPINFOHEADER': 40,
-                'BITMAPV3INFOHEADER': 56}
+bitmap_core_header_t = np.dtype([
+    ('header_size', '<u4'),
+    ('image_width', '<u2'),
+    ('image_height', '<u2'),
+    ('image_planes', '<u2'),
+    ('bits_per_pixel', '<u2'),
+])
+
+header_names = {'BITMAPCOREHEADER':12,
+                'BITMAPINFOHEADER': 40}
+
+info_header_t_dict = {12: bitmap_core_header_t,
+                      40: info_header_t}
 
 compression_types = ['BI_RGB', 'BI_RLE8', 'BI_RLE4', 'BI_BITFIELDS', 'BI_JPEG',
                      'BI_PNG', 'BI_ALPHABITFIELDS', 'BI_CMYK', 'BI_CMYKRLE8'
@@ -129,12 +140,15 @@ def imread(filename):
         header = np.fromfile(f, dtype=header_t, count=1)
         if header['signature'] != 'BM'.encode():
             raise ValueError('Provided file is not a bmp file.')
-        header_size = np.fromfile(f, dtype=info_header_t['header_size'], count=1)
-        if header_size != info_header_t.itemsize:
+        header_size = int(np.fromfile(f, dtype='<u4', count=1))
+        if header_size not in header_names.values():
             raise NotImplementedError(
                 'We only implement basic gray scale images.')
         f.seek(-info_header_t['header_size'].itemsize, SEEK_CUR)
-        info_header = np.fromfile(f, dtype=info_header_t, count=1)
+        info = np.fromfile(f, dtype=info_header_t_dict[header_size], count=1)
+        info_header = np.zeros(1, dtype=info_header_t)
+        for name in info.dtype.names:
+            info_header[name] = info[name]
 
         shape = (int(abs(info_header['image_height'])), int(info_header['image_width']))
         if info_header['image_planes'] != 1:
@@ -155,10 +169,14 @@ def imread(filename):
             )
 
         color_table_max_shape = int(header['file_offset_to_pixelarray'][0] -
-                                    header.nbytes - info_header.nbytes)
+                                    header.nbytes - info.nbytes)
         color_table_count = min(color_table_max_shape, 2 ** bits_per_pixel * 4)
         color_table = np.fromfile(f, dtype='<u1', count=color_table_count)
-        color_table = color_table.reshape(-1, 4)
+        if header_size == header_names['BITMAPCOREHEADER']:
+            # bitmap core header color tables only contain 3 values, not 4
+            color_table = color_table.reshape(-1, 3)
+        else:
+            color_table = color_table.reshape(-1, 4)
 
         row_size = (bits_per_pixel * shape[1] + 31) // 32 * 4
         image_size = row_size * shape[0]
@@ -223,7 +241,7 @@ def imread(filename):
                 # this is actually quite costly
                 image[:, :, [2, 0]] = image[:, :, [0, 2]]
                 # Alpha only exists in BITMAPV3INFOHEADER and later
-                if info_header['header_size'] < header_names['BITMAPV3INFOHEADER']:
+                if info_header['header_size'] <= header_names['BITMAPINFOHEADER']:
                     image[:, :, 3] = 255
                 return image
 
