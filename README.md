@@ -11,7 +11,12 @@ Pillow's memory system isn't compatible with numpy. Meaning that everytime you
 read or write images, they get copied to a Pillow array, then again to a numpy
 array.
 
-For large images, this is a serious bottleneck. The performance of this
+For large images, this is a serious bottleneck. The goal of the library
+it to read images where the color representation is stored in a numpy compatible
+memory format. Images are not loaded in as indicies into a color table, as this
+kind of optimization makes math and data analysis more indirect. Rather,
+the returned images are either grayscale or RGB (or potentially some other color
+space). Generally, the performance of this
 library is optimized for cases where the memory representation of the numpy
 array is the same as that of the data in the bmp image.
 
@@ -19,7 +24,7 @@ array is the same as that of the data in the bmp image.
 
 ## Supported file formats
 
-* BMP: 8bit mono grayscale only. [Wikipedia](https://en.wikipedia.org/wiki/BMP_file_format)
+* BMP: 1, 4, or 8bit per pixel. [Wikipedia](https://en.wikipedia.org/wiki/BMP_file_format)
 
 ## Future file formats
 
@@ -42,29 +47,29 @@ pretty close to what `redpil` achieves.
 
 Saving images:
 ```
-================ ============ =============
---                          mode           
----------------- --------------------------
-     shape          pillow        redpil   
-================ ============ =============
-   (128, 128)      263±4μs       106±2μs   
-  (1024, 1024)    1000±60μs      787±90μs  
-  (2048, 4096)    5.15±0.2ms   4.62±0.07ms
- (32768, 32768)    510±10ms      470±3ms   
-================ ============ =============
+================ ============ ============ ============
+--                                mode                 
+---------------- --------------------------------------
+     shape          redpil       pillow      imageio   
+================ ============ ============ ============
+   (128, 128)      93.4±1μs     254±30μs     369±20μs  
+  (1024, 1024)     720±30μs     936±50μs    1.60±0.3ms
+  (2048, 4096)    5.25±0.7ms   5.20±0.1ms    10.4±2ms  
+ (32768, 32768)    480±10ms     489±5ms     1.34±0.09s
+================ ============ ============ ============
 ```
 
 Reading image
 ```
-================ =========== =============
---                          mode          
----------------- -------------------------
-     shape          pillow       redpil   
-================ =========== =============
-   (128, 128)      306±7μs      120±2μs   
-  (1024, 1024)    990±300μs     187±7μs   
-  (2048, 4096)     3.53±1ms   1.39±0.04ms
- (32768, 32768)    242±7μs      369±4ms   
-================ =========== =============
+================ ============= ============ =============
+--                                 mode                  
+---------------- ----------------------------------------
+     shape           redpil       pillow       imageio   
+================ ============= ============ =============
+   (128, 128)       131±5μs      293±10μs      130±2μs   
+  (1024, 1024)      194±10μs    1.03±0.1ms     192±5μs   
+  (2048, 4096)    1.69±0.05ms    8.55±1ms    1.67±0.03ms
+ (32768, 32768)     350±3ms      230±5μs       354±10ms  
+================ ============= ============ =============
 ```
 Note, Pillow refuses to read the 1GB image because it thinks it is a fork bomb.
