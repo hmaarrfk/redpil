@@ -140,11 +140,16 @@ def imread(filename):
                 "We only support images with 1 or 8 bits per pixel. Got "
                 "{} bits per pixel.".format(bits_per_pixel)
             )
-        color_table = np.fromfile(
-            f, dtype='<u1', count=2 ** bits_per_pixel * 4)
-        color_table = color_table.reshape(-1, 4)
 
-
+        color_table_max_shape = int(header['file_offset_to_pixelarray'][0] -
+                                    header.nbytes - info_header.nbytes)
+        color_table_count = min(color_table_max_shape, 2 ** bits_per_pixel * 4)
+        if color_table_count:
+            color_table = np.fromfile(
+                f, dtype='<u1', count=color_table_count)
+            color_table = color_table.reshape(-1, 4)
+        else:
+            color_table = None
 
         row_size = (bits_per_pixel * shape[1] + 31) // 32 * 4
         image_size = row_size * shape[0]
@@ -170,6 +175,9 @@ def imread(filename):
             if np.all(color_table[:, 0:1] == color_table[:, 1:3]):
                 color_table = color_table[:, 0]
                 gray_color_table = gray_color_table[:, 0]
+            else:
+                # Color table is provided in BGR, not RGB
+                color_table = color_table[:, ::-1]
 
             image = image[:shape[0], :shape[1]]
             if not np.array_equal(color_table, gray_color_table):
