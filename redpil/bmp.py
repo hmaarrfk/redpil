@@ -34,7 +34,7 @@ gray_color_table = np.stack([gray_color_table,
                              gray_color_table,
                              gray_color_table,
                              np.full_like(gray_color_table,
-                                          fill_value=255)], axis=1)
+                                          fill_value=0, dtype='<u1')], axis=1)
 
 def imwrite(filename, image):
     image = np.atleast_2d(image)
@@ -109,13 +109,8 @@ def imread(filename):
                 "We don't know how to handle more than 1 image plane. "
                 "Got {} image planes.".format(info_header['image_planes']))
 
-        if info_header['bits_per_pixel'] != 8:
-            raise NotImplementedError(
-                "We don't know how to handle images with more or less than 8 "
-                "bits per pixel. Got {} bits per pixels".format(
-                    info_header['bits_per_pixel']))
-
-        if compression_types[info_header['compression'][0]] != 'BI_RGB':
+        compression = compression_types[info_header['compression'][0]]
+        if compression != 'BI_RGB':
             raise NotImplementedError(
                 "We only handle images with compression format BI_RGB. "
                 "Got compression format {}.".format(
@@ -125,12 +120,9 @@ def imread(filename):
             f, dtype='<u1', count=2 ** info_header['bits_per_pixel'][0] * 4)
         color_table = color_table.reshape(-1, 4)
 
-        if not np.all(color_table == gray_color_table):
-            raise NotImplementedError(
-                'We only handle the case where the color table is that of a '
-                'grayscale image.')
+        bits_per_pixel = info_header['bits_per_pixel'][0]
 
-        row_size = (info_header['bits_per_pixel'][0] * shape[1] + 31) // 32 * 4
+        row_size = (bits_per_pixel * shape[1] + 31) // 32 * 4
         image_size = row_size * shape[0]
 
         f.seek(header['file_offset_to_pixelarray'][0])
@@ -141,5 +133,23 @@ def imread(filename):
         # Except if the image height is negative
         if info_header['image_height'] > 0:
             image = image[::-1]
+
+        # do a color table lookup
+        if compression == 'BI_RGB':
+            color_table = color_table[..., :3]
+            # Compress the color table if applicable
+            if np.all(color_table[:, 0:1] == color_table[:, 1:3]):
+                color_table = color_table[:, 0]
+
+            if bits_per_pixel == 1:
+                image = np.unpackbits(image, axis=1).astype(np.bool)
+                if np.all(color_table == [0, 255]):
+                    return image
+            elif bits_per_pixel == 8:
+                if not np.all(color_table == gray_color_table[:, 0]):
+                    return image
+
+            image = color_table[image]
+
 
     return image
