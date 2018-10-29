@@ -72,4 +72,50 @@ Reading image
  (32768, 32768)     350±3ms      230±5μs       354±10ms  
 ================ ============= ============ =============
 ```
+
 Note, Pillow refuses to read the 1GB image because it thinks it is a fork bomb.
+
+#### Patched up imageio
+
+As it can be seen, the team at imageio/scikit-image are much better at reading
+the pillow documentation and understanding how to use it effectively. Their
+reading speeds actually match the reading speeds of redpil, even though they
+use pillow as a backend. They even handle what pillow thinks is a forkbomb.
+
+Through writing this module, two bugs were found in imageio that affect
+the speed of saving images [imageio PR #398](
+https://github.com/imageio/imageio/pull/398), and how images were being read
+[imageio PR #399](
+https://github.com/imageio/imageio/pull/399#issuecomment-433992314)
+
+With PR 398, the saving speed of imageio+pillow now matches that of redpil.
+Note I'm always using the computer when running benchmarks, so take the exact
+numbers with a grain of salt.
+
+Saving
+```
+================ ============ ============ ============
+--                                mode                 
+---------------- --------------------------------------
+     shape          redpil       pillow      imageio   
+================ ============ ============ ============
+   (128, 128)      98.3±4μs     245±7μs      350±4μs   
+  (1024, 1024)     714±20μs     921±30μs     997±20μs  
+  (2048, 4096)    4.83±0.3ms   5.30±0.4ms   5.26±0.2ms
+ (32768, 32768)    520±40ms     516±30ms     489±9ms   
+================ ============ ============ ============
+```
+
+Reading
+```
+================ ============= ============ =============
+--                                 mode                  
+---------------- ----------------------------------------
+     shape           redpil       pillow       imageio   
+================ ============= ============ =============
+   (128, 128)      129±0.7μs     284±2μs      129±0.7μs  
+  (1024, 1024)      191±2μs     1.12±0.1ms    190±0.9μs  
+  (2048, 4096)    1.62±0.03ms    8.88±1ms    1.63±0.02ms
+ (32768, 32768)     357±9ms      223±4μs       361±8ms   
+================ ============= ============ =============
+```
