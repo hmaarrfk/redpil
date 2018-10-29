@@ -1,7 +1,8 @@
-=====
 Usage
 =====
 
-To use redpil in a project::
+redpil is still heavily experimental. To use it in your project, make sure you
+understand the limitations of each plugin. Then import the plugin you wish to
+use with::
 
-    import redpil
+    from redpil.bmp import imread, imwrite

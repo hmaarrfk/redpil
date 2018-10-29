@@ -1,17 +1,19 @@
 Welcome to redpil's documentation!
-======================================
+==================================
+
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Contents:
 
-   readme
+   README
    installation
    usage
-   modules
-   contributing
-   authors
-   history
+   redpil
+
+   examples
+
+   HISTORY
 
 Indices and tables
 ==================

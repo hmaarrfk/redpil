@@ -8,3 +8,5 @@ __version__ = get_versions()['version']
 del get_versions
 
 from .redpil import imwrite, imread
+
+__all__ = ['imread', 'imwrite']

@@ -1,6 +1,8 @@
 import numpy as np
 from io import SEEK_CUR
 
+__all__ = ['imread', 'imwrite']
+
 header_t = np.dtype([
     ('signature', '|S2'),
     ('filesize', '<u4'),
