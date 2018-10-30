@@ -164,16 +164,16 @@ def _encode_32bpp(filename, image, write_order=None):
         image = image.copy()
         image[..., [0, 2]] = image[..., [2, 0]]
         packed_image = image.reshape(image.shape[0], -1).copy()
-        info_header['red_mask']   = 0x00_FF_00_00
-        info_header['green_mask'] = 0x00_00_FF_00
-        info_header['blue_mask']  = 0x00_00_00_FF
-        info_header['alpha_mask'] = 0xFF_00_00_00
+        info_header['red_mask']   = 0x00FF0000
+        info_header['green_mask'] = 0x0000FF00
+        info_header['blue_mask']  = 0x000000FF
+        info_header['alpha_mask'] = 0xFF000000
     else:
         packed_image = image.reshape(image.shape[0], -1).copy()
-        info_header['blue_mask']  = 0x00_FF_00_00
-        info_header['green_mask'] = 0x00_00_FF_00
-        info_header['red_mask']   = 0x00_00_00_FF
-        info_header['alpha_mask'] = 0xFF_00_00_00
+        info_header['blue_mask']  = 0x00FF0000
+        info_header['green_mask'] = 0x0000FF00
+        info_header['red_mask']   = 0x000000FF
+        info_header['alpha_mask'] = 0xFF000000
 
     header['signature'] = 'BM'.encode()
 

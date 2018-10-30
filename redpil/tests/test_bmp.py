@@ -59,13 +59,13 @@ def test_uint8_rgba_image(tmpdir, shape, backend):
 
 
     if backend == 'pillow':
-        imwrite(tmpfile, img, mode='BGRA')
+        imwrite(tmpfile, img, write_order='BGRA')
         img_read = np.asarray(Image.open(tmpfile).convert('RGBA'))
         assert img.dtype == img_read.dtype
         assert_array_equal(img, img_read)
     else:
-        for mode in ['RGBA', 'BGRA']:
-            imwrite(tmpfile, img, mode=mode)
+        for write_order in ['RGBA', 'BGRA']:
+            imwrite(tmpfile, img, write_order=write_order)
             img_read = imread(tmpfile)
             assert img.dtype == img_read.dtype
             assert_array_equal(img, img_read)
