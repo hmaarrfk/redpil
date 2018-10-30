@@ -275,9 +275,13 @@ def imread(filename):
             out = color_index[:, 0::2]
             np.right_shift(image[:, :out.shape[1]], 4, out=out)
             out = color_index[:, 1::2]
-            np.bitwise_and(image[:, :out.shape[1]], 0x0F, out=out)
+            np.copyto(out, image[:, :out.shape[1]])
             # There isn't really a color table for 4 bits per image
             gray_color_table = np.zeros((0, 4), dtype=np.uint8)
+            # repeat teh color table to index quickly
+            table = np.zeros((2**4, color_table.shape[1]), dtype=np.uint8)
+            table[:color_table.shape[0], :] = color_table
+            color_table = np.concatenate([table] * (256 // 4), axis=0)
         elif bits_per_pixel == 16:
             if color_table.size == 0:
                 packed_image = image[:shape[0], :shape[1]]
