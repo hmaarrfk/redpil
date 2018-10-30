@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 from PIL import Image
 from numpy.testing import assert_array_equal
-import imageio
 
 
 parametrize = pytest.mark.parametrize
@@ -40,7 +39,6 @@ passing_files = ['pal1.bmp', 'pal1bg.bmp', 'pal1wb.bmp',
                  'rgb16.bmp', 'rgb16-565.bmp',
                  'rgb24.bmp', 'rgb24pal.bmp', 'rgb32.bmp']
 non_passing_files = ['pal4rle.bmp',  'pal8rle.bmp',
-
                      'rgb16-565pal.bmp', 'rgb16bfdef.bmp',
                      'rgb32bf.bmp',
                      'rgb32bfdef.bmp',]
