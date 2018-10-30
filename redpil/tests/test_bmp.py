@@ -15,9 +15,6 @@ def test_failers(tmpdir):
     with pytest.raises(NotImplementedError):
         imwrite(tmpfile, img)
 
-    img = np.zeros((4, 4, 3), dtype=np.uint8)
-    with pytest.raises(NotImplementedError):
-        imwrite(tmpfile, img)
 
 @pytest.mark.parametrize('shape', [(4, 4), (7, 7), (21, 7)])
 @pytest.mark.parametrize('backend', ['pillow', 'redpil'])
@@ -34,6 +31,24 @@ def test_uint8_image(tmpdir, shape, backend):
 
     assert img.dtype == img_read.dtype
     assert_array_equal(img, img_read)
+
+
+@pytest.mark.parametrize('shape', [(4, 4, 3), (7, 7, 3), (21, 7, 3)])
+@pytest.mark.parametrize('backend', ['pillow', 'redpil'])
+def test_uint8_rgb_image(tmpdir, shape, backend):
+    tmpfile = os.path.join(str(tmpdir), 'test.bmp')
+
+    img = np.random.randint(255, size=shape, dtype=np.uint8)
+    imwrite(tmpfile, img)
+
+    if backend == 'pillow':
+        img_read = np.asarray(Image.open(tmpfile).convert('RGB'))
+    else:
+        img_read = imread(tmpfile)
+
+    assert img.dtype == img_read.dtype
+    assert_array_equal(img, img_read)
+
 
 @pytest.mark.parametrize('shape', [(4, 4), (7, 7), (21, 7),
                                    (121, 121), (128, 128)])
