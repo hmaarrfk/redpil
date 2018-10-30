@@ -20,13 +20,13 @@ passing_files = ['pal1.bmp', 'pal1bg.bmp', 'pal1wb.bmp',
                  'rgb16.bmp',
                  'rgb16-565.bmp', 'rgb16-565pal.bmp', 'rgb16bfdef.bmp',
                  'rgb24.bmp', 'rgb24pal.bmp',
-                 'rgb32.bmp', 'rgb32bfdef.bmp']
+                 'rgb32.bmp', 'rgb32bfdef.bmp', 'rgb32bf.bmp']
 
 # 'pal4rle.bmp': Pillow OSError: Unsupported BMP compression (2)
 # 'rgb32bf.bmp': Pillow OSError: Unsupported BMP bitfields layout
 # 'pal8rle.bmp': Pillow OSError: Unsupported BMP compression (1)
 
-non_passing_files = ['pal4rle.bmp',  'pal8rle.bmp', 'rgb32bf.bmp']
+non_passing_files = ['pal4rle.bmp',  'pal8rle.bmp']
 
 # RLE can be easily implemented in numpy
 '''

@@ -280,9 +280,22 @@ def imread(filename):
         if bits_per_pixel == 32:
             if compression == 'BI_BITFIELDS':
                 bitfields = np.fromfile(f, dtype='<u4', count=3).tolist()
-                raise NotImplementedError(
-                    "Still haven't implement bitfield encoding for "
-                    "32 bit images.")
+                right_shift = []
+                precision = []
+                for bitfield in bitfields:
+                    for i in range(32):
+                        if np.bitwise_and(bitfield, 0x1) == 1:
+                            right_shift.append(i)
+                            for j in range(i, 32):
+                                bitfield = np.right_shift(bitfield, 1)
+                                if np.bitwise_and(bitfield, 0x1) == 0:
+                                    precision.append(j - i + 1)
+                                    break
+                            break
+                        bitfield = np.right_shift(bitfield, 1)
+
+                bitfields_use_uint8 = (precision == [8, 8, 8] and
+                                       all(shift % 8 == 0 for shift in right_shift))
             else:
                 bitfields = [0x0000FF00, 0x00FF0000, 0xFF000000]
 
@@ -291,6 +304,11 @@ def imread(filename):
         if bits_per_pixel == 16:
             image = np.fromfile(f, dtype='<u2',
                                 count=image_size // 2).reshape(-1, row_size // 2)
+        elif (bits_per_pixel == 32 and
+                compression == 'BI_BITFIELDS' and
+                not bitfields_use_uint8):
+            image = np.fromfile(f, dtype='<u4',
+                                count=image_size // 4).reshape(-1, row_size // 4)
         else:
             image = np.fromfile(f, dtype='<u1',
                                 count=image_size).reshape(-1, row_size)
@@ -357,14 +375,32 @@ def imread(filename):
             # image format is returned as BGR, not RGB
             return image[:, :shape[1], ::-1]
         elif bits_per_pixel == 32:
-            image = image.reshape(image.shape[0], -1, 4)
             # image format is returned as BGRA, not RGBA
             # this is actually quite costly
-            image[:, :, [2, 0]] = image[:, :, [0, 2]]
-            # Alpha only exists in BITMAPV3INFOHEADER and later
-            if info_header['header_size'] <= header_names['BITMAPINFOHEADER']:
-                image[:, :, 3] = 255
-            return image
+            if compression == 'BI_RGB':
+                image = image.reshape(image.shape[0], -1, 4)
+                image[:, :, [2, 0]] = image[:, :, [0, 2]]
+                # Alpha only exists in BITMAPV3INFOHEADER and later
+                if info_header['header_size'] <= header_names['BITMAPINFOHEADER']:
+                    image[:, :, 3] = 255
+            elif compression == 'BI_BITFIELDS':
+                if bitfields_use_uint8:
+                    image = image.reshape(image.shape[0], -1, 4)
+                    if right_shift == [16, 8, 0]:
+                        image = image[:, :, :3]
+                        image[:, :, [2, 0]] = image[:, :, [0, 2]]
+                        return image
+                else:
+                    raw = image.reshape(shape[0], -1)
+                    if precision == [8, 8, 8]:
+                        image = np.empty(raw.shape + (3,), dtype=np.uint8)
+                        for i, r in zip(range(3), right_shift):
+                            np.right_shift(raw, r, out=image[:, :, i],
+                                           casting='unsafe')
+                        return image
+
+                raise NotImplementedError(
+                    "We don't support your particular format yet.")
 
         # Compress the color table if applicable
         if np.all(color_table[:, 0:1] == color_table[:, 1:3]):
