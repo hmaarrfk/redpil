@@ -57,9 +57,8 @@ def test_uint8_rgba_image(tmpdir, shape, backend):
 
     img = np.random.randint(255, size=shape, dtype=np.uint8)
 
-
     if backend == 'pillow':
-        imwrite(tmpfile, img, write_order='BGRA')
+        imwrite(tmpfile, img)
         img_read = np.asarray(Image.open(tmpfile).convert('RGBA'))
         assert img.dtype == img_read.dtype
         assert_array_equal(img, img_read)

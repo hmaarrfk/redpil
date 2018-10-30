@@ -25,6 +25,16 @@ def imwrite(filename, image, write_order=None):
     image: [N, M [, P]] np.uint8 or np.bool
         Image to save.
 
+    write_order: 'RGBA' or 'BGRA'
+        The order in which the bytes are stored in the BMP file (little endian).
+        The default for most BMP images is ``'BGRA'``. Unfortunately, many
+        numpy images are in ``RGBA``. As such saving in 'BGRA' mode is a little
+        slower (25% slower) than ``'RGBA'`` mode. However, PILLOW doesn't
+        support ``'RGBA'`` mode and therefore you need to be careful about
+        interoperability with others. The default will stay as ``'BGRA'`` until
+        Pillow supports ``'RGBA'``. At that point, saving in ``'BGRA'``
+        mode might be considered out of scope for this project.
+
     """
 
     if image.dtype == np.uint8 and image.ndim == 2:
@@ -158,7 +168,13 @@ def _encode_32bpp(filename, image, write_order=None):
         raise ValueError(
             '``write_order`` must be either ``RGBA`` or ``BGRA`` if sepecified.')
 
-    if write_order == 'BGRA':
+    if write_order == 'RGBA':
+        packed_image = image.reshape(image.shape[0], -1).copy()
+        info_header['blue_mask']  = 0x00FF0000
+        info_header['green_mask'] = 0x0000FF00
+        info_header['red_mask']   = 0x000000FF
+        info_header['alpha_mask'] = 0xFF000000
+    else:
         # Images are typically stored in BGR format
         # specifying the order of the pixels to match the memory
         image = image.copy()
@@ -167,12 +183,6 @@ def _encode_32bpp(filename, image, write_order=None):
         info_header['red_mask']   = 0x00FF0000
         info_header['green_mask'] = 0x0000FF00
         info_header['blue_mask']  = 0x000000FF
-        info_header['alpha_mask'] = 0xFF000000
-    else:
-        packed_image = image.reshape(image.shape[0], -1).copy()
-        info_header['blue_mask']  = 0x00FF0000
-        info_header['green_mask'] = 0x0000FF00
-        info_header['red_mask']   = 0x000000FF
         info_header['alpha_mask'] = 0xFF000000
 
     header['signature'] = 'BM'.encode()

@@ -99,7 +99,7 @@ class BMPSuite32bpp:
         self.img = np.random.randint(255, size=shape, dtype=np.uint8)
         self.tmpdir = Path(mkdtemp())
         self.filename = self.tmpdir / 'saved.bmp'
-        imwrite(self.filename, self.img)
+        imwrite(self.filename, self.img, write_order='RGBA')
         self.filename_pillow = self.tmpdir / 'saved_pillow.bmp'
         # Pillow needs BGRA
         imwrite(self.filename_pillow, self.img, write_order='BGRA')
@@ -115,7 +115,7 @@ class BMPSuite32bpp:
             imageio.imwrite(filename, self.img)
         else:
             filename = self.tmpdir / 'redpil.bmp'
-            imwrite(filename, self.img)
+            imwrite(filename, self.img, write_order='RGBA')
 
     def time_load(self, shape, mode):
         if mode == 'pillow':
