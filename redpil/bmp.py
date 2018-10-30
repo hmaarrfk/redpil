@@ -50,7 +50,7 @@ def imwrite(filename, image):
     info_header['image_size'] = 0
     info_header['x_pixels_per_meter'] = 0
     info_header['y_pixels_per_meter'] = 0
-    info_header['colors_in_color_table'] = 0
+    info_header['colors_in_color_table'] = 256
     info_header['important_color_count'] = 0
 
     with open(filename, 'bw+') as f:
