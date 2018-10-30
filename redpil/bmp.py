@@ -114,14 +114,35 @@ gray_color_table_uint8 = np.stack([gray_color_table_uint8,
 # basically, the difference between 14 and 256 is insiginifcant in terms of
 # memory consumption. Therefore, we create an array that can be indexed
 # while effectively ignoring the most significant bits in the a uint8
-color_table_uint4 = np.asarray([0, 85, 170, 255], dtype='<u1')
-color_table_uint4 = np.concatenate([color_table_uint4] * (256 // color_table_uint4.size))
+gray_table_uint1 = np.asarray([0, 255], dtype='<u1')
+gray_table_uint1 = np.concatenate([gray_table_uint1] * (256 // gray_table_uint1.size))
 
-color_table_uint5 = np.linspace(0, 255, num=2**5, dtype=np.uint8)
-color_table_uint5 = np.concatenate([color_table_uint5] * (256 // color_table_uint5.size))
+gray_table_uint2 = np.asarray([0, 85, 170, 255], dtype='<u1')
+gray_table_uint2 = np.concatenate([gray_table_uint2] * (256 // gray_table_uint2.size))
 
-color_table_uint6 = np.linspace(0, 255, num=2**6, dtype=np.uint8)
-color_table_uint6 = np.concatenate([color_table_uint6] * (256 // color_table_uint6.size))
+gray_table_uint3 = np.linspace(0, 255, num=2**3, dtype=np.uint8)
+gray_table_uint3 = np.concatenate([gray_table_uint3] * (256 // gray_table_uint3.size))
+
+gray_table_uint4 = np.linspace(0, 255, num=2**4, dtype=np.uint8)
+gray_table_uint4 = np.concatenate([gray_table_uint4] * (256 // gray_table_uint4.size))
+
+gray_table_uint5 = np.linspace(0, 255, num=2**5, dtype=np.uint8)
+gray_table_uint5 = np.concatenate([gray_table_uint5] * (256 // gray_table_uint5.size))
+
+gray_table_uint6 = np.linspace(0, 255, num=2**6, dtype=np.uint8)
+gray_table_uint6 = np.concatenate([gray_table_uint6] * (256 // gray_table_uint6.size))
+
+gray_table_uint7 = np.linspace(0, 255, num=2**7, dtype=np.uint8)
+gray_table_uint7 = np.concatenate([gray_table_uint7] * (256 // gray_table_uint7.size))
+
+gray_tables = dict(zip(range(1, 8),
+                       [gray_table_uint1,
+                        gray_table_uint2,
+                        gray_table_uint3,
+                        gray_table_uint4,
+                        gray_table_uint5,
+                        gray_table_uint6,
+                        gray_table_uint7]))
 
 gray_color_table_bool = np.asarray([0, 255], dtype='<u1')
 gray_color_table_bool = np.stack([gray_color_table_bool,
@@ -313,7 +334,7 @@ def imread(filename):
                     np.right_shift(packed_image, 5, out=image[:, :, 1],
                                    casting='unsafe')
                     np.copyto(image[:, :, 2], packed_image, casting='unsafe')
-                    np.take(color_table_uint5, image, out=image)
+                    np.take(gray_table_uint5, image, out=image)
 
                 else:
                     np.right_shift(packed_image, 5 + 6, out=image[:, :, 0],
@@ -321,8 +342,8 @@ def imread(filename):
                     np.right_shift(packed_image, 5, out=image[:, :, 1],
                                    casting='unsafe')
                     np.copyto(image[:, :, 2], packed_image, casting='unsafe')
-                    np.take(color_table_uint5, image[:, :, 0::2], out=image[:, :, 0::2])
-                    np.take(color_table_uint6, image[:, :, 1], out=image[:, :, 1])
+                    np.take(gray_table_uint5, image[:, :, 0::2], out=image[:, :, 0::2])
+                    np.take(gray_table_uint6, image[:, :, 1], out=image[:, :, 1])
 
                 return image
             else:
