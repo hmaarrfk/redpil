@@ -106,7 +106,18 @@ gray_color_table_uint8 = np.stack([gray_color_table_uint8,
                                   axis=1)
 
 # Need to convert 16 bit packed numbers to RGB
+# These are pretty hacky optimizations
+# basically, the difference between 14 and 256 is insiginifcant in terms of
+# memory consumption. Therefore, we create an array that can be indexed
+# while effectively ignoring the most significant bits in the a uint8
+color_table_uint4 = np.asarray([0, 85, 170, 255], dtype='<u1')
+color_table_uint4 = np.concatenate([color_table_uint4] * (256 // color_table_uint4.size))
+
 color_table_uint5 = np.linspace(0, 255, num=2**5, dtype=np.uint8)
+color_table_uint5 = np.concatenate([color_table_uint5] * (256 // color_table_uint5.size))
+
+color_table_uint6 = np.linspace(0, 255, num=2**6, dtype=np.uint8)
+color_table_uint6 = np.concatenate([color_table_uint6] * (256 // color_table_uint6.size))
 
 gray_color_table_bool = np.asarray([0, 255], dtype='<u1')
 gray_color_table_bool = np.stack([gray_color_table_bool,
@@ -116,13 +127,6 @@ gray_color_table_bool = np.stack([gray_color_table_bool,
                                                fill_value=0, dtype='<u1')],
                                  axis=1)
 
-gray_color_table_uint4 = np.asarray([0, 85, 170, 255], dtype='<u1')
-gray_color_table_uint4 = np.stack([gray_color_table_uint4,
-                                   gray_color_table_uint4,
-                                   gray_color_table_uint4,
-                                   np.full_like(gray_color_table_uint4,
-                                                fill_value=0, dtype='<u1')],
-                                  axis=1)
 def imwrite(filename, image):
     image = np.atleast_2d(image)
     if image.ndim > 2:
@@ -212,7 +216,7 @@ def imread(filename):
                 "Got {} image planes.".format(info_header['image_planes']))
 
         compression = compression_types[info_header['compression'][0]]
-        if compression != 'BI_RGB':
+        if compression not in ['BI_RGB', 'BI_BITFIELDS']:
             raise NotImplementedError(
                 "We only handle images with compression format BI_RGB. "
                 "Got compression format {}.".format(compression))
@@ -229,7 +233,11 @@ def imread(filename):
             color_table_max_shape = min(color_table_max_shape,
                                         int(info_header['colors_in_color_table']) * 4)
         color_table_count = min(color_table_max_shape, 2 ** bits_per_pixel * 4)
+        if compression == 'BI_BITFIELDS':
+            color_table_count = 0
+
         color_table = np.fromfile(f, dtype='<u1', count=color_table_count)
+
         if header_size == header_names['BITMAPCOREHEADER']:
             # bitmap core header color tables only contain 3 values, not 4
             color_table = color_table.reshape(-1, 3)
@@ -250,73 +258,84 @@ def imread(filename):
         # Except if the image height is negative
         if info_header['image_height'] > 0:
             image = image[::-1, :]
-        # do a color table lookup
-        if compression == 'BI_RGB':
-            color_table = color_table[..., :3]
-            if bits_per_pixel == 8:
-                gray_color_table = gray_color_table_uint8
-                # These images are padded, make sure you slice them
-                image = image[:shape[0], :shape[1]]
-            elif bits_per_pixel == 1:
-                color_index = np.unpackbits(image, axis=1)
-                gray_color_table = gray_color_table_bool
-                color_index = color_index[:shape[0], :shape[1]]
-            elif bits_per_pixel == 4:
-                color_index = np.empty(shape, dtype=np.uint8)
-                # Unpack the image
-                out = color_index[:, 0::2]
-                np.right_shift(image[:, :out.shape[1]], 4, out=out)
-                out = color_index[:, 1::2]
-                np.bitwise_and(image[:, :out.shape[1]], 0x0F, out=out)
-                gray_color_table = gray_color_table_uint4
-            elif bits_per_pixel == 16:
-                if color_table.size == 0:
-                    packed_image = image[:shape[0], :shape[1]]
 
-                    image = np.empty(shape + (3,), dtype=np.uint8)
-                    np.right_shift(packed_image, 10, out=image[:, :, 0],
+        # do a color table lookup
+        color_table = color_table[..., :3]
+        if bits_per_pixel == 8:
+            gray_color_table = gray_color_table_uint8
+            # These images are padded, make sure you slice them
+            image = image[:shape[0], :shape[1]]
+        elif bits_per_pixel == 1:
+            color_index = np.unpackbits(image, axis=1)
+            gray_color_table = gray_color_table_bool
+            color_index = color_index[:shape[0], :shape[1]]
+        elif bits_per_pixel == 4:
+            color_index = np.empty(shape, dtype=np.uint8)
+            # Unpack the image
+            out = color_index[:, 0::2]
+            np.right_shift(image[:, :out.shape[1]], 4, out=out)
+            out = color_index[:, 1::2]
+            np.bitwise_and(image[:, :out.shape[1]], 0x0F, out=out)
+            # There isn't really a color table for 4 bits per image
+            gray_color_table = np.zeros((0, 4), dtype=np.uint8)
+        elif bits_per_pixel == 16:
+            if color_table.size == 0:
+                packed_image = image[:shape[0], :shape[1]]
+
+                image = np.empty(shape + (3,), dtype=np.uint8)
+                if compression == 'BI_RGB':
+                    np.right_shift(packed_image, 5 + 5, out=image[:, :, 0],
                                    casting='unsafe')
                     np.right_shift(packed_image, 5, out=image[:, :, 1],
                                    casting='unsafe')
                     np.copyto(image[:, :, 2], packed_image, casting='unsafe')
-                    np.bitwise_and(image, 0x1F, out=image)
-                    return color_table_uint5[image]
+                    np.take(color_table_uint5, image, out=image)
+
                 else:
-                    # there really isn't a gray color table for 16 bit images
-                    gray_color_table = np.zeros((0, 4), dtype=np.uint8)
-                    # image = image[:shape[0], :shape[1]]
-                    raise NotImplementedError(
-                        "We don't support colormaps for 16 bit images.")
-            elif bits_per_pixel == 24:
-                image = image.reshape(image.shape[0], -1, 3)
-                # image format is returned as BGR, not RGB
-                return image[:, :shape[1], ::-1]
-            elif bits_per_pixel == 32:
-                image = image.reshape(image.shape[0], -1, 4)
-                # image format is returned as BGRA, not RGBA
-                # this is actually quite costly
-                image[:, :, [2, 0]] = image[:, :, [0, 2]]
-                # Alpha only exists in BITMAPV3INFOHEADER and later
-                if info_header['header_size'] <= header_names['BITMAPINFOHEADER']:
-                    image[:, :, 3] = 255
+                    np.right_shift(packed_image, 5 + 6, out=image[:, :, 0],
+                                   casting='unsafe')
+                    np.right_shift(packed_image, 5, out=image[:, :, 1],
+                                   casting='unsafe')
+                    np.copyto(image[:, :, 2], packed_image, casting='unsafe')
+                    np.take(color_table_uint5, image[:, :, 0::2], out=image[:, :, 0::2])
+                    np.take(color_table_uint6, image[:, :, 1], out=image[:, :, 1])
+
                 return image
-
-            # Compress the color table if applicable
-            if np.all(color_table[:, 0:1] == color_table[:, 1:3]):
-                color_table = color_table[:, 0]
-                gray_color_table = gray_color_table[:, 0]
-                use_color_table = not np.array_equal(color_table, gray_color_table)
             else:
-                # Color table is provided in BGR, not RGB
-                color_table = color_table[:, ::-1]
-                use_color_table = True
+                # there really isn't a gray color table for 16 bit images
+                gray_color_table = np.zeros((0, 4), dtype=np.uint8)
+                # image = image[:shape[0], :shape[1]]
+                raise NotImplementedError(
+                    "We don't support colormaps for 16 bit images.")
+        elif bits_per_pixel == 24:
+            image = image.reshape(image.shape[0], -1, 3)
+            # image format is returned as BGR, not RGB
+            return image[:, :shape[1], ::-1]
+        elif bits_per_pixel == 32:
+            image = image.reshape(image.shape[0], -1, 4)
+            # image format is returned as BGRA, not RGBA
+            # this is actually quite costly
+            image[:, :, [2, 0]] = image[:, :, [0, 2]]
+            # Alpha only exists in BITMAPV3INFOHEADER and later
+            if info_header['header_size'] <= header_names['BITMAPINFOHEADER']:
+                image[:, :, 3] = 255
+            return image
 
-            if use_color_table and bits_per_pixel == 8:
-                color_index = image
-
-            if bits_per_pixel < 8 or use_color_table:
-                image = color_table[color_index]
+        # Compress the color table if applicable
+        if np.all(color_table[:, 0:1] == color_table[:, 1:3]):
+            color_table = color_table[:, 0]
+            gray_color_table = gray_color_table[:, 0]
+            use_color_table = not np.array_equal(color_table, gray_color_table)
         else:
-            raise NotImplementedError('How did you get here')
+            # Color table is provided in BGR, not RGB
+            color_table = color_table[:, ::-1]
+            use_color_table = True
+
+        if use_color_table and bits_per_pixel == 8:
+            color_index = image
+
+        if bits_per_pixel < 8 or use_color_table:
+            image = color_table[color_index]
+
 
     return image
