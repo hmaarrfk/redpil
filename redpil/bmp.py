@@ -26,27 +26,57 @@ def imwrite(filename, image):
         Image to save.
 
     """
-    if image.ndim != 2:
-        raise NotImplementedError('Only monochrome 2D images are supported.')
 
-    if image.dtype == np.uint8:
-        color_table = gray_color_table_uint8
-        packed_image = image
-    elif image.dtype == np.bool:
-        color_table = gray_color_table_bool
-        packed_image = np.packbits(image, axis=1)
+    if image.dtype == np.uint8 and image.ndim == 2:
+        _encode_8bpp(filename, image)
+    elif image.dtype == np.bool and image.ndim == 2:
+        _encode_1bpp(filename, image)
     else:
         raise NotImplementedError('Only uint8 and bool images are supported.')
 
-    header = np.zeros(1, dtype=header_t)
-    info_header = np.empty(1, dtype=bitmap_info_header_t)
 
+def _encode_1bpp(filename, image):
+    color_table = gray_color_table_bool
+    packed_image = np.packbits(image, axis=1)
+    bits_per_pixel = 1
+
+    # BMP wants images to be padded to a multiple of 4
+    row_size = (bits_per_pixel * image.shape[1] + 31) // 32 * 4
+    image_size = row_size * image.shape[0]
+
+
+    header = np.zeros(1, dtype=header_t)
+    info_header = np.zeros(1, dtype=bitmap_info_header_t)
     header['signature'] = 'BM'.encode()
 
-    if image.dtype == np.bool:
-        bits_per_pixel = 1
-    else:
-        bits_per_pixel = image.itemsize * 8
+    header['file_offset_to_pixelarray'] = (header.nbytes +
+                                           info_header.nbytes +
+                                           color_table.nbytes)
+
+    header['filesize'] = (header['file_offset_to_pixelarray'] + image_size)
+
+    info_header['header_size'] = info_header.nbytes
+    info_header['image_width'] = image.shape[1]
+    # A positive height states the the array is saved "bottom to top"
+    # A negative height states that the array is saved "top to bottom"
+    # Top to bottom has a larger chance of being contiguous in C memory
+    info_header['image_height'] = -image.shape[0]
+    info_header['image_planes'] = 1
+    info_header['bits_per_pixel'] = bits_per_pixel
+    info_header['compression'] = compression_types.index('BI_RGB')
+    info_header['colors_in_color_table'] = 256
+
+    _write_file(filename, header, info_header, packed_image, color_table, row_size)
+
+
+def _encode_8bpp(filename, image):
+    color_table = gray_color_table_uint8
+    bits_per_pixel = 8
+
+    header = np.zeros(1, dtype=header_t)
+    info_header = np.zeros(1, dtype=bitmap_info_header_t)
+    header['signature'] = 'BM'.encode()
+
     # Not correct for color images
     # BMP wants images to be padded to a multiple of 4
     row_size = (bits_per_pixel * image.shape[1] + 31) // 32 * 4
@@ -67,12 +97,11 @@ def imwrite(filename, image):
     info_header['image_planes'] = 1
     info_header['bits_per_pixel'] = bits_per_pixel
     info_header['compression'] = compression_types.index('BI_RGB')
-    info_header['image_size'] = 0
-    info_header['x_pixels_per_meter'] = 0
-    info_header['y_pixels_per_meter'] = 0
     info_header['colors_in_color_table'] = 256
-    info_header['important_color_count'] = 0
+    _write_file(filename, header, info_header, image, color_table, row_size)
 
+
+def _write_file(filename, header, info_header, packed_image, color_table, row_size):
     with open(filename, 'bw+') as f:
         f.write(header)
         f.write(info_header)
@@ -83,7 +112,7 @@ def imwrite(filename, image):
             f.write(np.ascontiguousarray(packed_image).data)
         else:
             # Now slice just the part of the image that we actually write to.
-            data = np.empty((image.shape[0], row_size), dtype=np.uint8)
+            data = np.empty((packed_image.shape[0], row_size), dtype=np.uint8)
 
             data[:packed_image.shape[0],
                  :packed_image.shape[1]] = packed_image
