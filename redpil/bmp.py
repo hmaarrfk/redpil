@@ -256,6 +256,15 @@ def imread(filename):
                 bitfields = np.fromfile(f, dtype='<u4', count=3).tolist()
             else:
                 bitfields = BITFIELDS_555
+        if bits_per_pixel == 32:
+            if compression == 'BI_BITFIELDS':
+                bitfields = np.fromfile(f, dtype='<u4', count=3).tolist()
+                raise NotImplementedError(
+                    "Still haven't implement bitfield encoding for "
+                    "32 bit images.")
+            else:
+                bitfields = [0x0000FF00, 0x00FF0000, 0xFF000000]
+
 
         f.seek(int(header['file_offset_to_pixelarray']))
         if bits_per_pixel == 16:
