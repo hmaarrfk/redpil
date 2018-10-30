@@ -174,20 +174,20 @@ def _decode_32bpp(f, header, info_header, color_table, shape, row_size):
     image_size = row_size * shape[0]
     if (compression == 'BI_BITFIELDS' and
             not bitfields_use_uint8):
-        image = np.fromfile(f, dtype='<u4',
-                            count=image_size // 4).reshape(-1, row_size // 4)
+        raw = np.fromfile(f, dtype='<u4',
+                          count=image_size // 4).reshape(-1, row_size // 4)
     else:
-        image = np.fromfile(f, dtype='<u1',
-                            count=image_size).reshape(-1, row_size)
+        raw = np.fromfile(f, dtype='<u1',
+                          count=image_size).reshape(-1, row_size)
     # BMPs are saved typically as the last row first.
     # Except if the image height is negative
     if info_header['image_height'] > 0:
-        image = image[::-1, :]
+        raw = raw[::-1, :]
 
     # image format is returned as BGRA, not RGBA
     # this is actually quite costly
     if compression == 'BI_RGB':
-        image = image.reshape(image.shape[0], -1, 4)
+        image = raw.reshape(shape[0], -1, 4)
         # Alpha only exists in BITMAPV3INFOHEADER and later
         if info_header['header_size'] <= header_sizes['BITMAPINFOHEADER']:
             image = image[..., :3]
@@ -198,12 +198,12 @@ def _decode_32bpp(f, header, info_header, color_table, shape, row_size):
         return image
     elif compression == 'BI_BITFIELDS':
         if bitfields_use_uint8:
-            image = image.reshape(image.shape[0], -1, 4)
+            image = raw.reshape(shape[0], -1, 4)
             if right_shift == [16, 8, 0]:
                 image = image[:, :, :3]
                 return image[:, :, ::-1]
         else:
-            raw = image.reshape(shape[0], -1)
+            raw = raw.reshape(shape[0], -1)
             if precision == [8, 8, 8]:
                 image = np.empty(raw.shape + (3,), dtype=np.uint8)
                 for i, r in zip(range(3), right_shift):
