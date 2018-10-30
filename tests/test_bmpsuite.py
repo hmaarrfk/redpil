@@ -41,7 +41,8 @@ Out[4]: array([1, 1, 2, 2, 2, 3])
 # @pytest.mark.xfail
 @parametrize('filename', passing_files)
 def test_test(filename):
-    imagepath = good_folder / filename
+    # Don't pass in pathlib until 3.5 support is dropped
+    imagepath = str(good_folder / filename)
     img = imread(imagepath)
     if filename == 'rgb32bf.bmp':
         imagepath = good_folder / 'rgb32bfdef.bmp'
