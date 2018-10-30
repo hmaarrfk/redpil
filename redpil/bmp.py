@@ -92,6 +92,8 @@ header_names = {'BITMAPCOREHEADER':12,
 # See this post about it
 # http://www.virtualdub.org/blog/pivot/entry.php?id=177
 BITFIELDS_555 = [0x7C00, 0x03E0, 0x001F]
+BITFIELDS_565 = [0xF800, 0x07E0, 0x001F]
+
 info_header_t_dict = {12 : bitmap_core_header_t,
                       40 : bitmap_info_header_t,
                       108: bitmap_v4_header_t,
@@ -269,14 +271,12 @@ def imread(filename):
         else:
             color_table = color_table.reshape(-1, 4)
 
+        # When color tables are used, alpha is ignored.
+        color_table = color_table[..., :3]
+
         row_size = (bits_per_pixel * shape[1] + 31) // 32 * 4
         image_size = row_size * shape[0]
 
-        if bits_per_pixel == 16:
-            if compression == 'BI_BITFIELDS':
-                bitfields = np.fromfile(f, dtype='<u4', count=3).tolist()
-            else:
-                bitfields = BITFIELDS_555
         if bits_per_pixel == 32:
             if compression == 'BI_BITFIELDS':
                 bitfields = np.fromfile(f, dtype='<u4', count=3).tolist()
@@ -299,12 +299,13 @@ def imread(filename):
             else:
                 bitfields = [0x0000FF00, 0x00FF0000, 0xFF000000]
 
+        if bits_per_pixel == 16:
+            return _decode_16bbp(f, header, info_header, color_table,
+                                shape, row_size)
 
         f.seek(int(header['file_offset_to_pixelarray']))
-        if bits_per_pixel == 16:
-            image = np.fromfile(f, dtype='<u2',
-                                count=image_size // 2).reshape(-1, row_size // 2)
-        elif (bits_per_pixel == 32 and
+
+        if (bits_per_pixel == 32 and
                 compression == 'BI_BITFIELDS' and
                 not bitfields_use_uint8):
             image = np.fromfile(f, dtype='<u4',
@@ -317,8 +318,6 @@ def imread(filename):
         if info_header['image_height'] > 0:
             image = image[::-1, :]
 
-        # do a color table lookup
-        color_table = color_table[..., :3]
         if bits_per_pixel == 8:
             gray_color_table = gray_color_table_uint8
             # These images are padded, make sure you slice them
@@ -340,36 +339,6 @@ def imread(filename):
             table = np.zeros((2**4, color_table.shape[1]), dtype=np.uint8)
             table[:color_table.shape[0], :] = color_table
             color_table = np.concatenate([table] * (256 // 4), axis=0)
-        elif bits_per_pixel == 16:
-
-            if color_table.size == 0:
-                packed_image = image[:shape[0], :shape[1]]
-
-                image = np.empty(shape + (3,), dtype=np.uint8)
-                if bitfields == BITFIELDS_555:
-                    np.right_shift(packed_image, 5 + 5, out=image[:, :, 0],
-                                   casting='unsafe')
-                    np.right_shift(packed_image, 5, out=image[:, :, 1],
-                                   casting='unsafe')
-                    np.copyto(image[:, :, 2], packed_image, casting='unsafe')
-                    np.take(gray_table_uint5, image, out=image)
-
-                else:
-                    np.right_shift(packed_image, 5 + 6, out=image[:, :, 0],
-                                   casting='unsafe')
-                    np.right_shift(packed_image, 5, out=image[:, :, 1],
-                                   casting='unsafe')
-                    np.copyto(image[:, :, 2], packed_image, casting='unsafe')
-                    np.take(gray_table_uint5, image[:, :, 0::2], out=image[:, :, 0::2])
-                    np.take(gray_table_uint6, image[:, :, 1], out=image[:, :, 1])
-
-                return image
-            else:
-                # there really isn't a gray color table for 16 bit images
-                gray_color_table = np.zeros((0, 4), dtype=np.uint8)
-                # image = image[:shape[0], :shape[1]]
-                raise NotImplementedError(
-                    "We don't support colormaps for 16 bit images.")
         elif bits_per_pixel == 24:
             image = image.reshape(image.shape[0], -1, 3)
             # image format is returned as BGR, not RGB
@@ -383,6 +352,7 @@ def imread(filename):
                 # Alpha only exists in BITMAPV3INFOHEADER and later
                 if info_header['header_size'] <= header_names['BITMAPINFOHEADER']:
                     image[:, :, 3] = 255
+                return image
             elif compression == 'BI_BITFIELDS':
                 if bitfields_use_uint8:
                     image = image.reshape(image.shape[0], -1, 4)
@@ -418,5 +388,57 @@ def imread(filename):
         if bits_per_pixel < 8 or use_color_table:
             image = color_table[color_index]
 
+
+    return image
+
+
+def _decode_16bbp(f, header, info_header, color_table,
+                 shape, row_size):
+    compression = compression_types[info_header['compression'][0]]
+
+    if compression == 'BI_BITFIELDS':
+        bitfields = np.fromfile(f, dtype='<u4', count=3).tolist()
+    else:
+        bitfields = BITFIELDS_555
+
+    f.seek(int(header['file_offset_to_pixelarray']))
+
+    image_size = shape[0] * row_size
+    image = np.fromfile(f, dtype='<u2',
+                        count=image_size // 2).reshape(-1, row_size // 2)
+    # BMPs are saved typically as the last row first.
+    # Except if the image height is negative
+    if info_header['image_height'] > 0:
+        image = image[::-1, :]
+
+    if color_table.size != 0:
+        # there really isn't a gray color table for 16 bit images
+        gray_color_table = np.zeros((0, 4), dtype=np.uint8)
+        # image = image[:shape[0], :shape[1]]
+        raise NotImplementedError(
+            "We don't support colormaps for 16 bit images.")
+
+    packed_image = image[:shape[0], :shape[1]]
+
+    image = np.empty(shape + (3,), dtype=np.uint8)
+    if bitfields == BITFIELDS_555:
+        np.right_shift(packed_image, 5 + 5, out=image[:, :, 0],
+                       casting='unsafe')
+        np.right_shift(packed_image, 5, out=image[:, :, 1],
+                       casting='unsafe')
+        np.copyto(image[:, :, 2], packed_image, casting='unsafe')
+        np.take(gray_table_uint5, image, out=image)
+
+    elif bitfields == BITFIELDS_565:
+        np.right_shift(packed_image, 5 + 6, out=image[:, :, 0],
+                       casting='unsafe')
+        np.right_shift(packed_image, 5, out=image[:, :, 1],
+                       casting='unsafe')
+        np.copyto(image[:, :, 2], packed_image, casting='unsafe')
+        np.take(gray_table_uint5, image[:, :, 0::2], out=image[:, :, 0::2])
+        np.take(gray_table_uint6, image[:, :, 1], out=image[:, :, 1])
+    else:
+        raise NotImplementedError(
+            "We still haven't implemented your particular bitfield pattern.")
 
     return image
