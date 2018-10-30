@@ -394,6 +394,10 @@ def imread(filename):
 
 def _decode_16bbp(f, header, info_header, color_table,
                  shape, row_size):
+    if color_table.size != 0:
+        raise NotImplementedError(
+            "We don't support colormaps for 16 bit images.")
+            
     compression = compression_types[info_header['compression'][0]]
 
     if compression == 'BI_BITFIELDS':
@@ -410,13 +414,6 @@ def _decode_16bbp(f, header, info_header, color_table,
     # Except if the image height is negative
     if info_header['image_height'] > 0:
         image = image[::-1, :]
-
-    if color_table.size != 0:
-        # there really isn't a gray color table for 16 bit images
-        gray_color_table = np.zeros((0, 4), dtype=np.uint8)
-        # image = image[:shape[0], :shape[1]]
-        raise NotImplementedError(
-            "We don't support colormaps for 16 bit images.")
 
     packed_image = image[:shape[0], :shape[1]]
 
