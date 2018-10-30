@@ -270,13 +270,10 @@ def _decode_4bpp(f, header, info_header, color_table,
     if info_header['image_height'] > 0:
         packed_image = packed_image[::-1, :]
 
-    color_index = np.empty(shape, dtype=np.uint8)
-
     # Unpack the image
-    out = color_index[:, 0::2]
-    np.right_shift(packed_image[:, :out.shape[1]], 4, out=out)
-    out = color_index[:, 1::2]
-    np.copyto(out, packed_image[:, :out.shape[1]])
+    color_index = np.repeat(packed_image, 2, axis=1)
+    np.right_shift(color_index[:, ::2], 4, out=color_index[:, ::2])
+    color_index = color_index[:shape[0], :shape[1]]
 
     # repeat the color table to index quickly
     table = np.zeros((256 // 2**4, 2**4, color_table.shape[1]), dtype=np.uint8)
