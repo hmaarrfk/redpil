@@ -300,7 +300,10 @@ def imread(filename):
                 bitfields = [0x0000FF00, 0x00FF0000, 0xFF000000]
 
         if bits_per_pixel == 16:
-            return _decode_16bbp(f, header, info_header, color_table,
+            return _decode_16bpp(f, header, info_header, color_table,
+                                 shape, row_size)
+        elif bits_per_pixel == 4:
+            return _decode_4bpp(f, header, info_header, color_table,
                                 shape, row_size)
 
         f.seek(int(header['file_offset_to_pixelarray']))
@@ -326,19 +329,6 @@ def imread(filename):
             color_index = np.unpackbits(image, axis=1)
             gray_color_table = gray_color_table_bool
             color_index = color_index[:shape[0], :shape[1]]
-        elif bits_per_pixel == 4:
-            color_index = np.empty(shape, dtype=np.uint8)
-            # Unpack the image
-            out = color_index[:, 0::2]
-            np.right_shift(image[:, :out.shape[1]], 4, out=out)
-            out = color_index[:, 1::2]
-            np.copyto(out, image[:, :out.shape[1]])
-            # There isn't really a color table for 4 bits per image
-            gray_color_table = np.zeros((0, 4), dtype=np.uint8)
-            # repeat teh color table to index quickly
-            table = np.zeros((2**4, color_table.shape[1]), dtype=np.uint8)
-            table[:color_table.shape[0], :] = color_table
-            color_table = np.concatenate([table] * (256 // 4), axis=0)
         elif bits_per_pixel == 24:
             image = image.reshape(image.shape[0], -1, 3)
             # image format is returned as BGR, not RGB
@@ -388,16 +378,46 @@ def imread(filename):
         if bits_per_pixel < 8 or use_color_table:
             image = color_table[color_index]
 
-
     return image
 
+def _compress_color_table(color_table):
+    if np.all(color_table[:, 0:1] == color_table[:, 1:3]):
+        return color_table[:, 0]
+    else:
+        # Color table is provided in BGR, not RGB
+        return color_table[:, ::-1]
 
-def _decode_16bbp(f, header, info_header, color_table,
+def _decode_4bpp(f, header, info_header, color_table,
+                 shape, row_size):
+    f.seek(int(header['file_offset_to_pixelarray']))
+    packed_image = np.fromfile(f, dtype='<u1',
+                               count=row_size * shape[0]).reshape(-1, row_size)
+    if info_header['image_height'] > 0:
+        packed_image = packed_image[::-1, :]
+
+    color_index = np.empty(shape, dtype=np.uint8)
+
+    # Unpack the image
+    out = color_index[:, 0::2]
+    np.right_shift(packed_image[:, :out.shape[1]], 4, out=out)
+    out = color_index[:, 1::2]
+    np.copyto(out, packed_image[:, :out.shape[1]])
+
+    # repeat the color table to index quickly
+    table = np.zeros((256 // 2**4, 2**4, color_table.shape[1]), dtype=np.uint8)
+    table[:, :color_table.shape[0], :] = color_table
+    color_table = table.reshape(-1, color_table.shape[1])
+
+    color_table = _compress_color_table(color_table)
+
+    return color_table[color_index]
+
+def _decode_16bpp(f, header, info_header, color_table,
                  shape, row_size):
     if color_table.size != 0:
         raise NotImplementedError(
             "We don't support colormaps for 16 bit images.")
-            
+
     compression = compression_types[info_header['compression'][0]]
 
     if compression == 'BI_BITFIELDS':
