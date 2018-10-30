@@ -103,11 +103,11 @@ compression_types = ['BI_RGB', 'BI_RLE8', 'BI_RLE4', 'BI_BITFIELDS', 'BI_JPEG',
                      'BI_PNG', 'BI_ALPHABITFIELDS', 'BI_CMYK', 'BI_CMYKRLE8'
                      'BI_CMYKRLE4']
 
-gray_color_table_uint8 = np.arange(256, dtype='<u1')
-gray_color_table_uint8 = np.stack([gray_color_table_uint8,
-                                   gray_color_table_uint8,
-                                   gray_color_table_uint8,
-                                   np.full_like(gray_color_table_uint8,
+gray_color_table_compressed_uint8 = np.arange(256, dtype='<u1')
+gray_color_table_uint8 = np.stack([gray_color_table_compressed_uint8,
+                                   gray_color_table_compressed_uint8,
+                                   gray_color_table_compressed_uint8,
+                                   np.full_like(gray_color_table_compressed_uint8,
                                                 fill_value=0, dtype='<u1')],
                                   axis=1)
 
@@ -311,11 +311,14 @@ def imread(filename):
         elif bits_per_pixel == 1:
             return _decode_1bpp(f, header, info_header, color_table,
                                 shape, row_size)
+        elif bits_per_pixel == 8:
+            return _decode_8bpp(f, header, info_header, color_table,
+                                shape, row_size)
 
+        assert bits_per_pixel == 32
         f.seek(int(header['file_offset_to_pixelarray']))
 
-        if (bits_per_pixel == 32 and
-                compression == 'BI_BITFIELDS' and
+        if (compression == 'BI_BITFIELDS' and
                 not bitfields_use_uint8):
             image = np.fromfile(f, dtype='<u4',
                                 count=image_size // 4).reshape(-1, row_size // 4)
@@ -327,54 +330,33 @@ def imread(filename):
         if info_header['image_height'] > 0:
             image = image[::-1, :]
 
-        if bits_per_pixel == 8:
-            gray_color_table = gray_color_table_uint8
-            # These images are padded, make sure you slice them
-            image = image[:shape[0], :shape[1]]
-        elif bits_per_pixel == 32:
-            # image format is returned as BGRA, not RGBA
-            # this is actually quite costly
-            if compression == 'BI_RGB':
+        # image format is returned as BGRA, not RGBA
+        # this is actually quite costly
+        if compression == 'BI_RGB':
+            image = image.reshape(image.shape[0], -1, 4)
+            image[:, :, [2, 0]] = image[:, :, [0, 2]]
+            # Alpha only exists in BITMAPV3INFOHEADER and later
+            if info_header['header_size'] <= header_names['BITMAPINFOHEADER']:
+                image[:, :, 3] = 255
+            return image
+        elif compression == 'BI_BITFIELDS':
+            if bitfields_use_uint8:
                 image = image.reshape(image.shape[0], -1, 4)
-                image[:, :, [2, 0]] = image[:, :, [0, 2]]
-                # Alpha only exists in BITMAPV3INFOHEADER and later
-                if info_header['header_size'] <= header_names['BITMAPINFOHEADER']:
-                    image[:, :, 3] = 255
-                return image
-            elif compression == 'BI_BITFIELDS':
-                if bitfields_use_uint8:
-                    image = image.reshape(image.shape[0], -1, 4)
-                    if right_shift == [16, 8, 0]:
-                        image = image[:, :, :3]
-                        image[:, :, [2, 0]] = image[:, :, [0, 2]]
-                        return image
-                else:
-                    raw = image.reshape(shape[0], -1)
-                    if precision == [8, 8, 8]:
-                        image = np.empty(raw.shape + (3,), dtype=np.uint8)
-                        for i, r in zip(range(3), right_shift):
-                            np.right_shift(raw, r, out=image[:, :, i],
-                                           casting='unsafe')
-                        return image
+                if right_shift == [16, 8, 0]:
+                    image = image[:, :, :3]
+                    image[:, :, [2, 0]] = image[:, :, [0, 2]]
+                    return image
+            else:
+                raw = image.reshape(shape[0], -1)
+                if precision == [8, 8, 8]:
+                    image = np.empty(raw.shape + (3,), dtype=np.uint8)
+                    for i, r in zip(range(3), right_shift):
+                        np.right_shift(raw, r, out=image[:, :, i],
+                                       casting='unsafe')
+                    return image
 
-                raise NotImplementedError(
-                    "We don't support your particular format yet.")
-
-        # Compress the color table if applicable
-        if np.all(color_table[:, 0:1] == color_table[:, 1:3]):
-            color_table = color_table[:, 0]
-            gray_color_table = gray_color_table[:, 0]
-            use_color_table = not np.array_equal(color_table, gray_color_table)
-        else:
-            # Color table is provided in BGR, not RGB
-            color_table = color_table[:, ::-1]
-            use_color_table = True
-
-        if use_color_table and bits_per_pixel == 8:
-            color_index = image
-
-        if bits_per_pixel < 8 or use_color_table:
-            image = color_table[color_index]
+            raise NotImplementedError(
+                "We don't support your particular format yet.")
 
     return image
 
@@ -411,6 +393,23 @@ def _decode_24bpp(f, header, info_header, color_table,
     image = image.reshape(image.shape[0], -1, 3)
     # image format is returned as BGR, not RGB
     return image[:, :shape[1], ::-1]
+
+def _decode_8bpp(f, header, info_header, color_table,
+                 shape, row_size):
+    f.seek(int(header['file_offset_to_pixelarray']))
+    image = np.fromfile(f, dtype='<u1',
+                        count=row_size * shape[0]).reshape(-1, row_size)
+    if info_header['image_height'] > 0:
+        image = image[::-1, :]
+
+    # These images are padded, make sure you slice them
+    image = image[:shape[0], :shape[1]]
+
+    color_table = _compress_color_table(color_table)
+    if np.array_equal(color_table, gray_color_table_compressed_uint8):
+        return image
+    else:
+        return color_table[image]
 
 def _decode_4bpp(f, header, info_header, color_table,
                  shape, row_size):
