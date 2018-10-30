@@ -71,8 +71,6 @@ def test_uint8_rgba_image(tmpdir, shape, backend):
             assert_array_equal(img, img_read)
 
 
-
-
 @pytest.mark.parametrize('shape', [(4, 4), (7, 7), (21, 7),
                                    (121, 121), (128, 128)])
 @pytest.mark.parametrize('backend', ['pillow', 'redpil'])
