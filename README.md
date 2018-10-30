@@ -5,24 +5,39 @@
 [![Docs](https://readthedocs.org/projects/redpil/badge/?version=latest)](https://redpil.readthedocs.io/en/latest/?badge=latest)
 
 
-Join the wonderland of python, and decode all your images in a numpy compatible way.
+Join the wonderland of python, and decode all your images in a numpy compatible
+way.
 
-Pillow's memory system isn't compatible with numpy. Meaning that everytime you
-read or write images, they get copied to a Pillow array, then again to a numpy
-array.
+Pillow is a great library for image manipulation. However, many operations fall
+outside what Pillow can do. As such, many scientific applications require the
+image to be available as a numpy array. However, Pillow's memory system
+is largely incompatible with numpy's. [imageio](
+https://github.com/imageio/imageio) has created an efficient bridge between
+numpy and Pillow (see benchmarks below). Unfortunately, Pillow's multitude of
+options remain confusing it is challenging to understand how they all operate
+together. Furthermore, the code base is rather old, written in C, meaning that
+it is difficult to extend the functionality of existing decoders.
 
-For large images, this is a serious bottleneck. The goal of the library
-it to read images where the color representation is stored in a numpy compatible
-memory format. Images are not loaded in as indicies into a color table, as this
-kind of optimization makes math and data analysis more indirect. Rather,
-the returned images are either grayscale or RGB (or potentially some other color
-space). Generally, the performance of this
-library is optimized for cases where the memory representation of the numpy
-array is the same as that of the data in the bmp image.
+For large images, understanding the details of Pillow and numpy is a this is a
+serious bottleneck.
+The goal of the library it to read and write images in a manner natural to numpy
+users. Images are presented as the values they hold (not indices in a color
+table) allowing for direct data analysis.
 
-* Documentation: https://redpil.readthedocs.io.
+As much as possible, the library is written in python allowing for new decoding
+algorithms to be played around with.
+
+
+## Bitmap images
+Generally, this library will not load memory in a C-contiguous array. Rather
+the memory order will mostly match what was saved on disk.
+
+Bitmap images will be stored in an order similar to how they arranged in
+RAM.
 
 ## Supported file formats
+
+Reading BMP is almost fully supported. Writing is still limited.
 
 * BMP: 1, 4, or 8bit per pixel. [Wikipedia](https://en.wikipedia.org/wiki/BMP_file_format)
 

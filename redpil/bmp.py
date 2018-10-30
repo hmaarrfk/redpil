@@ -5,9 +5,29 @@ __all__ = ['imread', 'imwrite']
 
 
 def imwrite(filename, image):
-    image = np.atleast_2d(image)
-    if image.ndim > 2:
-        raise NotImplementedError('Only monochrome images are supported.')
+    """Write an image as a BMP.
+
+    Depending on the dtype and shape of the image, the image will either
+    be encoded with 1 bit per pixel (boolean 2D images), 8 bit per pixel
+    (uint8 2D images), 24 bit per pixel (2D + RGB), or 32 bit per pixel
+    (3D + RGB).
+
+    Other file formats may be supported in the future, but cannot be selected
+    automatically.
+
+    This function opens the provided filename with ``'bw+'``.
+
+    Parameters
+    ==========
+    filename: str or anything that ``open`` can handle
+        Where the file should be stored.
+
+    image: [N, M [, P]] np.uint8 or np.bool
+        Image to save.
+
+    """
+    if image.ndim != 2:
+        raise NotImplementedError('Only monochrome 2D images are supported.')
 
     if image.dtype == np.uint8:
         color_table = gray_color_table_uint8
@@ -71,6 +91,28 @@ def imwrite(filename, image):
 
 
 def imread(filename):
+    """Read a BMP image.
+
+    The returned image is almost always a np.uint8 dtype.
+    If a grayscale image is detected, then the returned image is only 2D.
+    If the use of color channels is detected, then an RGB (or RGBA) image is
+    returned accordingly.
+
+    The image may or may not be C contiguous. Due to intricacies about how
+    bitmap images are stored.
+
+    This may make image seem to load faster, but many algorithms call
+    ``np.ascontiguousarray``. As such, you should benchmark your code to
+    see what is best for you.
+
+    This function opens the provided filename with ``'br'``.
+
+    Parameters
+    ==========
+    filename: str or anything that ``open`` can handle
+        What image should be opened.
+
+    """
     with open(filename, 'br') as f:
         header = np.fromfile(f, dtype=header_t, count=1)
         if header['signature'] != 'BM'.encode():
