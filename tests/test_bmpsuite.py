@@ -29,6 +29,7 @@ passing_files = ['pal1.bmp', 'pal1bg.bmp', 'pal1wb.bmp',
 non_passing_files = ['pal4rle.bmp',  'pal8rle.bmp']
 
 # RLE can be easily implemented in numpy
+# https://docs.microsoft.com/en-us/windows/desktop/gdi/bitmap-compression
 '''
 In [2]: a = np.asarray([1, 2, 3])
 
