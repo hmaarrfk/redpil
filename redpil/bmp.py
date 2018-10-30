@@ -305,6 +305,9 @@ def imread(filename):
         elif bits_per_pixel == 4:
             return _decode_4bpp(f, header, info_header, color_table,
                                 shape, row_size)
+        elif bits_per_pixel == 24:
+            return _decode_24bpp(f, header, info_header, color_table,
+                                 shape, row_size)
 
         f.seek(int(header['file_offset_to_pixelarray']))
 
@@ -329,10 +332,6 @@ def imread(filename):
             color_index = np.unpackbits(image, axis=1)
             gray_color_table = gray_color_table_bool
             color_index = color_index[:shape[0], :shape[1]]
-        elif bits_per_pixel == 24:
-            image = image.reshape(image.shape[0], -1, 3)
-            # image format is returned as BGR, not RGB
-            return image[:, :shape[1], ::-1]
         elif bits_per_pixel == 32:
             # image format is returned as BGRA, not RGBA
             # this is actually quite costly
@@ -386,6 +385,18 @@ def _compress_color_table(color_table):
     else:
         # Color table is provided in BGR, not RGB
         return color_table[:, ::-1]
+
+def _decode_24bpp(f, header, info_header, color_table,
+                  shape, row_size):
+    f.seek(int(header['file_offset_to_pixelarray']))
+    image = np.fromfile(f, dtype='<u1',
+                        count=row_size * shape[0]).reshape(-1, row_size)
+    if info_header['image_height'] > 0:
+        image = image[::-1, :]
+
+    image = image.reshape(image.shape[0], -1, 3)
+    # image format is returned as BGR, not RGB
+    return image[:, :shape[1], ::-1]
 
 def _decode_4bpp(f, header, info_header, color_table,
                  shape, row_size):
