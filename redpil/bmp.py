@@ -11,7 +11,7 @@ header_t = np.dtype([
     ('file_offset_to_pixelarray', '<u4')
 ])
 
-info_header_t = np.dtype([
+bitmap_info_header_t = np.dtype([
     ('header_size', '<u4'),
     ('image_width', '<i4'),
     ('image_height', '<i4'),
@@ -88,8 +88,12 @@ header_names = {'BITMAPCOREHEADER':12,
                 'BITMAPV4HEADER': 108,
                 'BITMAPV5HEADER': 124}
 
-info_header_t_dict = {12: bitmap_core_header_t,
-                      40: info_header_t,
+# bitfields is so poorly documented
+# See this post about it
+# http://www.virtualdub.org/blog/pivot/entry.php?id=177
+BITFIELDS_555 = [0x7C00, 0x03E0, 0x001F]
+info_header_t_dict = {12 : bitmap_core_header_t,
+                      40 : bitmap_info_header_t,
                       108: bitmap_v4_header_t,
                       124: bitmap_v5_header_t}
 
@@ -142,7 +146,7 @@ def imwrite(filename, image):
         raise NotImplementedError('Only uint8 and bool images are supported.')
 
     header = np.zeros(1, dtype=header_t)
-    info_header = np.empty(1, dtype=info_header_t)
+    info_header = np.empty(1, dtype=bitmap_info_header_t)
 
     header['signature'] = 'BM'.encode()
 
@@ -203,7 +207,7 @@ def imread(filename):
         if header_size not in header_names.values():
             raise NotImplementedError(
                 'We only implement basic gray scale images.')
-        f.seek(-info_header_t['header_size'].itemsize, SEEK_CUR)
+        f.seek(-bitmap_info_header_t['header_size'].itemsize, SEEK_CUR)
         info = np.fromfile(f, dtype=info_header_t_dict[header_size], count=1)
         info_header = np.zeros(1, dtype=bitmap_v5_header_t)
         for name in info.dtype.names:
@@ -247,6 +251,12 @@ def imread(filename):
         row_size = (bits_per_pixel * shape[1] + 31) // 32 * 4
         image_size = row_size * shape[0]
 
+        if bits_per_pixel == 16:
+            if compression == 'BI_BITFIELDS':
+                bitfields = np.fromfile(f, dtype='<u4', count=3).tolist()
+            else:
+                bitfields = BITFIELDS_555
+
         f.seek(int(header['file_offset_to_pixelarray']))
         if bits_per_pixel == 16:
             image = np.fromfile(f, dtype='<u2',
@@ -283,11 +293,12 @@ def imread(filename):
             table[:color_table.shape[0], :] = color_table
             color_table = np.concatenate([table] * (256 // 4), axis=0)
         elif bits_per_pixel == 16:
+
             if color_table.size == 0:
                 packed_image = image[:shape[0], :shape[1]]
 
                 image = np.empty(shape + (3,), dtype=np.uint8)
-                if compression == 'BI_RGB':
+                if bitfields == BITFIELDS_555:
                     np.right_shift(packed_image, 5 + 5, out=image[:, :, 0],
                                    casting='unsafe')
                     np.right_shift(packed_image, 5, out=image[:, :, 1],
