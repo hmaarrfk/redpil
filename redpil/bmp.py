@@ -4,7 +4,7 @@ from io import SEEK_CUR
 __all__ = ['imread', 'imwrite']
 
 
-def imwrite(filename, image):
+def imwrite(filename, image, write_order=None):
     """Write an image as a BMP.
 
     Depending on the dtype and shape of the image, the image will either
@@ -33,6 +33,8 @@ def imwrite(filename, image):
         _encode_1bpp(filename, image)
     elif image.dtype == np.uint8 and image.ndim == 3 and image.shape[-1] == 3:
         _encode_24bpp(filename, image)
+    elif image.dtype == np.uint8 and image.ndim == 3 and image.shape[-1] == 4:
+        _encode_32bpp(filename, image, write_order=write_order)
     else:
         raise NotImplementedError('Only uint8 and bool images are supported.')
 
@@ -67,7 +69,7 @@ def _encode_1bpp(filename, image):
     info_header['bits_per_pixel'] = bits_per_pixel
     info_header['compression'] = compression_types.index('BI_RGB')
     info_header['image_size'] = image_size
-    info_header['colors_in_color_table'] = 256
+    info_header['colors_in_color_table'] = color_table.shape[0]
 
     _write_file(filename, header, info_header, packed_image, color_table, row_size)
 
@@ -101,7 +103,7 @@ def _encode_8bpp(filename, image):
     info_header['bits_per_pixel'] = bits_per_pixel
     info_header['compression'] = compression_types.index('BI_RGB')
     info_header['image_size'] = image_size
-    info_header['colors_in_color_table'] = 256
+    info_header['colors_in_color_table'] = color_table.shape[0]
 
     _write_file(filename, header, info_header, image, color_table, row_size)
 
@@ -140,7 +142,64 @@ def _encode_24bpp(filename, image):
     info_header['bits_per_pixel'] = bits_per_pixel
     info_header['compression'] = compression_types.index('BI_RGB')
     info_header['image_size'] = image_size
-    info_header['colors_in_color_table'] = 256
+    info_header['colors_in_color_table'] = color_table.shape[0]
+
+    _write_file(filename, header, info_header, packed_image, color_table, row_size)
+
+
+def _encode_32bpp(filename, image, write_order=None):
+    color_table = np.empty((0, 4), dtype=np.uint8)
+    bits_per_pixel = 32
+
+    header = np.zeros(1, dtype=header_t)
+    info_header = np.zeros(1, dtype=bitmap_v4_header_t)
+
+    if write_order not in [None, 'BGRA', 'RGBA']:
+        raise ValueError(
+            '``write_order`` must be either ``RGBA`` or ``BGRA`` if sepecified.')
+
+    if write_order == 'BGRA':
+        # Images are typically stored in BGR format
+        # specifying the order of the pixels to match the memory
+        image = image.copy()
+        image[..., [0, 2]] = image[..., [2, 0]]
+        packed_image = image.reshape(image.shape[0], -1).copy()
+        info_header['red_mask']   = 0x00_FF_00_00
+        info_header['green_mask'] = 0x00_00_FF_00
+        info_header['blue_mask']  = 0x00_00_00_FF
+        info_header['alpha_mask'] = 0xFF_00_00_00
+    else:
+        packed_image = image.reshape(image.shape[0], -1).copy()
+        info_header['blue_mask']  = 0x00_FF_00_00
+        info_header['green_mask'] = 0x00_00_FF_00
+        info_header['red_mask']   = 0x00_00_00_FF
+        info_header['alpha_mask'] = 0xFF_00_00_00
+
+    header['signature'] = 'BM'.encode()
+
+    # Not correct for color images
+    # BMP wants images to be padded to a multiple of 4
+    row_size = (bits_per_pixel * image.shape[1] + 31) // 32 * 4
+    image_size = row_size * image.shape[0]
+
+    header['file_offset_to_pixelarray'] = (header.nbytes +
+                                           info_header.nbytes +
+                                           color_table.nbytes)
+
+    header['filesize'] = (header['file_offset_to_pixelarray'] + image_size)
+
+    info_header['header_size'] = info_header.nbytes
+    info_header['image_width'] = image.shape[1]
+    # A positive height states the the array is saved "bottom to top"
+    # A negative height states that the array is saved "top to bottom"
+    # Top to bottom has a larger chance of being contiguous in C memory
+    info_header['image_height'] = -image.shape[0]
+    info_header['image_planes'] = 1
+    info_header['bits_per_pixel'] = bits_per_pixel
+    info_header['compression'] = compression_types.index('BI_BITFIELDS')
+    info_header['image_size'] = image_size
+    info_header['colors_in_color_table'] = color_table.shape[0]
+
 
     _write_file(filename, header, info_header, packed_image, color_table, row_size)
 
@@ -153,14 +212,17 @@ def _write_file(filename, header, info_header, packed_image, color_table, row_si
         if row_size == packed_image.shape[1]:
             # Small optimization when the image is a multiple of 4 bytes
             # it actually avoids a full memory copy, so it is quite useful
-            f.write(np.ascontiguousarray(packed_image).data)
+            # Unfortunately, for RGB images, the bytes may be swapped
+            # This causes a serious slowdown when saving images.
+            # Maybe ascontiguousarray is useful?
+            packed_image.tofile(f)
         else:
             # Now slice just the part of the image that we actually write to.
             data = np.empty((packed_image.shape[0], row_size), dtype=np.uint8)
 
             data[:packed_image.shape[0],
                  :packed_image.shape[1]] = packed_image
-            f.write(data.data)
+            data.tofile(f)
 
 
 def imread(filename):
@@ -264,7 +326,14 @@ def _decode_32bpp(f, header, info_header, color_table, shape, row_size):
     compression = compression_types[info_header['compression'][0]]
 
     if compression == 'BI_BITFIELDS':
-        bitfields = np.fromfile(f, dtype='<u4', count=3).tolist()
+        #
+        if info_header['header_size'] <= header_sizes['BITMAPINFOHEADER']:
+            # with info header, you can have valid bitfields, but only RGB
+            # not RGBA
+            bitfields = np.fromfile(f, dtype='<u4', count=3).tolist()
+        else:
+            bitfields = [info_header['red_mask'], info_header['green_mask'],
+                         info_header['blue_mask'], info_header['alpha_mask']]
         right_shift = []
         precision = []
         for bitfield in bitfields:
@@ -279,8 +348,10 @@ def _decode_32bpp(f, header, info_header, color_table, shape, row_size):
                     break
                 bitfield = np.right_shift(bitfield, 1)
 
-        bitfields_use_uint8 = (precision == [8, 8, 8] and
-                               all(shift % 8 == 0 for shift in right_shift))
+        bitfields_use_uint8 = (
+            precision in [[8, 8, 8], [8, 8, 8, 8], [8, 8, 8, 0]] and
+            all(shift % 8 == 0 for shift in right_shift))
+        is_rgba = len(precision) == 0 and precision[-1] != 0
     else:
         bitfields = [0x0000FF00, 0x00FF0000, 0xFF000000]
 
@@ -317,6 +388,12 @@ def _decode_32bpp(f, header, info_header, color_table, shape, row_size):
             if right_shift == [16, 8, 0]:
                 image = image[:, :, :3]
                 return image[:, :, ::-1]
+            elif right_shift == [16, 8, 0, 24]:
+                # advanced indexing is not the right tool, it copies the arrays
+                image[:, :, [0, 2]] = image[:, :, [2, 0]]
+                return image
+            elif right_shift == [0, 8, 16, 24]:
+                return image
         else:
             raw = raw.reshape(shape[0], -1)
             if precision == [8, 8, 8]:

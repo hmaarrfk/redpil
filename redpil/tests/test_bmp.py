@@ -50,6 +50,29 @@ def test_uint8_rgb_image(tmpdir, shape, backend):
     assert_array_equal(img, img_read)
 
 
+@pytest.mark.parametrize('shape', [(4, 4, 4), (7, 7, 4), (21, 7, 4)])
+@pytest.mark.parametrize('backend', ['pillow', 'redpil'])
+def test_uint8_rgba_image(tmpdir, shape, backend):
+    tmpfile = os.path.join(str(tmpdir), 'test.bmp')
+
+    img = np.random.randint(255, size=shape, dtype=np.uint8)
+
+
+    if backend == 'pillow':
+        imwrite(tmpfile, img, mode='BGRA')
+        img_read = np.asarray(Image.open(tmpfile).convert('RGBA'))
+        assert img.dtype == img_read.dtype
+        assert_array_equal(img, img_read)
+    else:
+        for mode in ['RGBA', 'BGRA']:
+            imwrite(tmpfile, img, mode=mode)
+            img_read = imread(tmpfile)
+            assert img.dtype == img_read.dtype
+            assert_array_equal(img, img_read)
+
+
+
+
 @pytest.mark.parametrize('shape', [(4, 4), (7, 7), (21, 7),
                                    (121, 121), (128, 128)])
 @pytest.mark.parametrize('backend', ['pillow', 'redpil'])
