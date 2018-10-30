@@ -188,18 +188,20 @@ def _decode_32bpp(f, header, info_header, color_table, shape, row_size):
     # this is actually quite costly
     if compression == 'BI_RGB':
         image = image.reshape(image.shape[0], -1, 4)
-        image[:, :, [2, 0]] = image[:, :, [0, 2]]
         # Alpha only exists in BITMAPV3INFOHEADER and later
         if info_header['header_size'] <= header_sizes['BITMAPINFOHEADER']:
-            image[:, :, 3] = 255
+            image = image[..., :3]
+            return image[:, :, ::-1]
+
+        raise RuntimeError('How did you get here?')
+        image[:, :, [2, 0]] = image[:, :, [0, 2]]
         return image
     elif compression == 'BI_BITFIELDS':
         if bitfields_use_uint8:
             image = image.reshape(image.shape[0], -1, 4)
             if right_shift == [16, 8, 0]:
                 image = image[:, :, :3]
-                image[:, :, [2, 0]] = image[:, :, [0, 2]]
-                return image
+                return image[:, :, ::-1]
         else:
             raw = image.reshape(shape[0], -1)
             if precision == [8, 8, 8]:
