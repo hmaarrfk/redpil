@@ -48,6 +48,33 @@ bitmap_v4_header_t = np.dtype([
     ('gamma_blue', '<u4'),              # 4
 ])
 
+bitmap_v5_header_t = np.dtype([
+    ('header_size', '<u4'),             # 4
+    ('image_width', '<i4'),             # 4
+    ('image_height', '<i4'),            # 4
+    ('image_planes', '<u2'),            # 2
+    ('bits_per_pixel', '<u2'),          # 2
+    ('compression', '<u4'),             # 4
+    ('image_size', '<u4'),              # 4
+    ('x_pixels_per_meter', '<i4'),      # 4
+    ('y_pixels_per_meter', '<i4'),      # 4
+    ('colors_in_color_table', '<u4'),   # 4
+    ('important_color_count', '<u4'),   # 4
+    ('red_mask', '<u4'),                # 4
+    ('green_mask', '<u4'),              # 4
+    ('blue_mask', '<u4'),               # 4
+    ('alpha_mask', '<u4'),              # 4
+    ('color_space', '|S4'),             # 4
+    ('cie_xyz_tripple', '<u4', (3, 3)), # 4 * 3 * 3
+    ('gamma_red', '<u4'),               # 4
+    ('gamma_green', '<u4'),             # 4
+    ('gamma_blue', '<u4'),              # 4
+    ('intent', '<u4'),                  # 4
+    ('profile_data', '<u4'),            # 4
+    ('profile_size', '<u4'),            # 4
+    ('reserved', '<u4'),                # 4
+])
+
 bitmap_core_header_t = np.dtype([
     ('header_size', '<u4'),
     ('image_width', '<u2'),
@@ -58,11 +85,13 @@ bitmap_core_header_t = np.dtype([
 
 header_names = {'BITMAPCOREHEADER':12,
                 'BITMAPINFOHEADER': 40,
-                'BITMAPV4HEADER': 108}
+                'BITMAPV4HEADER': 108,
+                'BITMAPV5HEADER': 124}
 
 info_header_t_dict = {12: bitmap_core_header_t,
                       40: info_header_t,
-                      108: bitmap_v4_header_t}
+                      108: bitmap_v4_header_t,
+                      124: bitmap_v5_header_t}
 
 compression_types = ['BI_RGB', 'BI_RLE8', 'BI_RLE4', 'BI_BITFIELDS', 'BI_JPEG',
                      'BI_PNG', 'BI_ALPHABITFIELDS', 'BI_CMYK', 'BI_CMYKRLE8'
@@ -172,7 +201,7 @@ def imread(filename):
                 'We only implement basic gray scale images.')
         f.seek(-info_header_t['header_size'].itemsize, SEEK_CUR)
         info = np.fromfile(f, dtype=info_header_t_dict[header_size], count=1)
-        info_header = np.zeros(1, dtype=bitmap_v4_header_t)
+        info_header = np.zeros(1, dtype=bitmap_v5_header_t)
         for name in info.dtype.names:
             info_header[name] = info[name]
 
@@ -221,8 +250,6 @@ def imread(filename):
         # Except if the image height is negative
         if info_header['image_height'] > 0:
             image = image[::-1, :]
-        if header_size == 108:
-            import pdb; pdb.set_trace()
         # do a color table lookup
         if compression == 'BI_RGB':
             color_table = color_table[..., :3]
@@ -260,7 +287,6 @@ def imread(filename):
                     # image = image[:shape[0], :shape[1]]
                     raise NotImplementedError(
                         "We don't support colormaps for 16 bit images.")
-                import pdb; pdb.set_trace()
             elif bits_per_pixel == 24:
                 image = image.reshape(image.shape[0], -1, 3)
                 # image format is returned as BGR, not RGB
