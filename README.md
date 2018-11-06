@@ -18,8 +18,7 @@ options remain confusing it is challenging to understand how they all operate
 together. Furthermore, the code base is rather old, written in C, meaning that
 it is difficult to extend the functionality of existing decoders.
 
-For large images, understanding the details of Pillow and numpy is a this is a
-serious bottleneck.
+For large images, having to understand the details of both Pillow and numpy is a serious bottleneck.
 The goal of the library it to read and write images in a manner natural to numpy
 users. Images are presented as the values they hold (not indices in a color
 table) allowing for direct data analysis.
