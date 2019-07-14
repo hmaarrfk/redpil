@@ -10,21 +10,21 @@ way.
 
 Pillow is a great library for image manipulation. However, many operations fall
 outside what Pillow can do. As such, many scientific applications require the
-image to be available as a numpy array. However, Pillow's memory system
-is largely incompatible with numpy's. [imageio](
+image to be available as a numpy array. [imageio](
 https://github.com/imageio/imageio) has created an efficient bridge between
-numpy and Pillow (see benchmarks below). Unfortunately, Pillow's multitude of
-options remain confusing it is challenging to understand how they all operate
-together. Furthermore, the code base is rather old, written in C, meaning that
-it is difficult to extend the functionality of existing decoders.
+numpy and Pillow (see benchmarks below).
 
 For large images, having to understand the details of both Pillow and numpy is a serious bottleneck.
 The goal of the library it to read and write images in a manner natural to numpy
 users. Images are presented as the values they hold (not indices in a color
 table) allowing for direct data analysis.
 
-As much as possible, the library is written in python allowing for new decoding
-algorithms to be played around with.
+To avoid the need for an other C dependency, this library aims at creating a pure 
+python image decoder for many of the image formats supported by Pillow that depends
+on other popular libraries such as numpy and scipy to do the heavy lifting in terms of
+computation. We start with the simple BMP file format. The pure python nature of this
+library means that we can quickly try to implement encoding and decoding into different 
+image formats.
 
 
 ## Bitmap images
