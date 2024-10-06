@@ -22,7 +22,7 @@ def imwrite(filename, image, write_order=None):
     filename: str or anything that ``open`` can handle
         Where the file should be stored.
 
-    image: [N, M [, P]] np.uint8 or np.bool
+    image: [N, M [, P]] np.uint8 or np.bool_
         Image to save.
 
     write_order: 'RGBA' or 'BGRA'
@@ -39,7 +39,7 @@ def imwrite(filename, image, write_order=None):
 
     if image.dtype == np.uint8 and image.ndim == 2:
         _encode_8bpp(filename, image)
-    elif image.dtype == np.bool and image.ndim == 2:
+    elif image.dtype == np.bool_ and image.ndim == 2:
         _encode_1bpp(filename, image)
     elif image.dtype == np.uint8 and image.ndim == 3 and image.shape[-1] == 3:
         _encode_24bpp(filename, image)
@@ -55,7 +55,7 @@ def _encode_1bpp(filename, image):
     bits_per_pixel = 1
 
     # BMP wants images to be padded to a multiple of 4
-    row_size = (bits_per_pixel * image.shape[1] + 31) // 32 * 4
+    row_size = int(bits_per_pixel * image.shape[1] + 31) // 32 * 4
     image_size = row_size * image.shape[0]
 
 
@@ -94,7 +94,7 @@ def _encode_8bpp(filename, image):
 
     # Not correct for color images
     # BMP wants images to be padded to a multiple of 4
-    row_size = (bits_per_pixel * image.shape[1] + 31) // 32 * 4
+    row_size = int(bits_per_pixel * image.shape[1] + 31) // 32 * 4
     image_size = row_size * image.shape[0]
 
     header['file_offset_to_pixelarray'] = (header.nbytes +
@@ -133,7 +133,7 @@ def _encode_24bpp(filename, image):
 
     # Not correct for color images
     # BMP wants images to be padded to a multiple of 4
-    row_size = (bits_per_pixel * image.shape[1] + 31) // 32 * 4
+    row_size = int(bits_per_pixel * image.shape[1] + 31) // 32 * 4
     image_size = row_size * image.shape[0]
 
     header['file_offset_to_pixelarray'] = (header.nbytes +
@@ -189,7 +189,7 @@ def _encode_32bpp(filename, image, write_order=None):
 
     # Not correct for color images
     # BMP wants images to be padded to a multiple of 4
-    row_size = (bits_per_pixel * image.shape[1] + 31) // 32 * 4
+    row_size = int(bits_per_pixel * image.shape[1] + 31) // 32 * 4
     image_size = row_size * image.shape[0]
 
     header['file_offset_to_pixelarray'] = (header.nbytes +
@@ -288,7 +288,7 @@ def imread(filename):
                 "We only handle images with compression format {}. "
                 "Got compression format {}.".format(
                     implemented_compressions, compression))
-        bits_per_pixel = info_header['bits_per_pixel'][0]
+        bits_per_pixel = int(info_header['bits_per_pixel'][0])
         if bits_per_pixel not in _decoders.keys():
             raise NotImplementedError(
                 "We only support images with one of {} bits per "
@@ -299,7 +299,7 @@ def imread(filename):
 
         color_table_max_shape = int(header['file_offset_to_pixelarray'][0] -
                                     header.nbytes - info.nbytes)
-        if info_header['colors_in_color_table'] != 0:
+        if int(info_header['colors_in_color_table'][0]) != 0:
             color_table_max_shape = min(
                 color_table_max_shape,
                 int(info_header['colors_in_color_table'][0]) * 4
@@ -321,7 +321,7 @@ def imread(filename):
         # When color tables are used, alpha is ignored.
         color_table = color_table[..., :3]
 
-        row_size = (bits_per_pixel * shape[1] + 31) // 32 * 4
+        row_size = int(bits_per_pixel * shape[1] + 31) // 32 * 4
 
         decoder = _decoders[bits_per_pixel]
         return decoder(f, header, info_header, color_table, shape, row_size)
@@ -452,8 +452,11 @@ def _decode_24bpp(f, header, info_header, color_table,
 def _decode_8bpp(f, header, info_header, color_table,
                  shape, row_size):
     f.seek(int(header['file_offset_to_pixelarray'][0]))
-    image = np.fromfile(f, dtype='<u1',
-                        count=row_size * shape[0]).reshape(-1, row_size)
+    print(row_size.__class__)
+    image = np.fromfile(
+        f, dtype='<u1',
+        count=row_size * shape[0]
+    ).reshape(-1, row_size)
     if info_header['image_height'] > 0:
         image = image[::-1, :]
 
@@ -540,9 +543,14 @@ def _decode_16bpp(f, header, info_header, color_table,
 
 
 # Convenient decoder dictionary
-_decoders = dict(zip([1, 4, 8, 16, 24, 32],
-                     [_decode_1bpp, _decode_4bpp, _decode_8bpp,
-                      _decode_16bpp, _decode_24bpp, _decode_32bpp]))
+_decoders = {
+    1: _decode_1bpp,
+    4: _decode_4bpp,
+    8: _decode_8bpp,
+    16: _decode_16bpp,
+    24: _decode_24bpp,
+    32: _decode_32bpp,
+}
 
 
 header_t = np.dtype([
