@@ -76,7 +76,7 @@ def test_uint8_rgba_image(tmpdir, shape, backend):
 def test_bool_image(tmpdir, shape, backend):
     tmpfile = os.path.join(str(tmpdir), 'test.bmp')
 
-    img = np.random.randint(2, size=shape, dtype=np.bool)
+    img = np.random.randint(2, size=shape, dtype=np.bool_)
     img[0, 0] = False
     img[-1, -1] = True
     print(img)

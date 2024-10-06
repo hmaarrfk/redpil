@@ -22,7 +22,7 @@ def imwrite(filename, image, write_order=None):
     filename: str or anything that ``open`` can handle
         Where the file should be stored.
 
-    image: [N, M [, P]] np.uint8 or np.bool
+    image: [N, M [, P]] np.uint8 or np.bool_
         Image to save.
 
     write_order: 'RGBA' or 'BGRA'
@@ -39,7 +39,7 @@ def imwrite(filename, image, write_order=None):
 
     if image.dtype == np.uint8 and image.ndim == 2:
         _encode_8bpp(filename, image)
-    elif image.dtype == np.bool and image.ndim == 2:
+    elif image.dtype == np.bool_ and image.ndim == 2:
         _encode_1bpp(filename, image)
     elif image.dtype == np.uint8 and image.ndim == 3 and image.shape[-1] == 3:
         _encode_24bpp(filename, image)
