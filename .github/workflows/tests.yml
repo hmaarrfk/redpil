@@ -13,13 +13,6 @@ jobs:
     strategy:
       matrix:
         python-version: ['3.10', '3.11', '3.12']
-        include:
-          - python-version: 3.10
-            with-numpy: true
-          - python-version: 3.11
-            with-numpy: false
-          - python-version: 3.12
-            with-numpy: true
       max-parallel: 8
       fail-fast: false
 
@@ -45,18 +38,15 @@ jobs:
           export RO_JSON_GIT_DESCRIBE=${{ steps.ghd.outputs.describe }}
           python -m pip install --upgrade pip
           pip install setuptools pytest pathlib
-          if [ "${{ matrix.with-numpy }}" = "true" ]; then
-          pip install pytz numpy pandas
-          fi
+          pip install numpy pillow
 
       - name: Install package
         run: |
-          export RO_JSON_GIT_DESCRIBE=${{ steps.ghd.outputs.describe }}
           python -m pip install . -vvv
+          python -c "import redpil; print(redpil.__version__)"
 
       - name: Run tests
         run: |
-          export RO_JSON_GIT_DESCRIBE=${{ steps.ghd.outputs.describe }}
           python --version
           pip check
           pytest -v --strict
