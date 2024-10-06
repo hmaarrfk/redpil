@@ -262,7 +262,7 @@ def imread(filename):
         header = np.fromfile(f, dtype=header_t, count=1)
         if header['signature'] != 'BM'.encode():
             raise ValueError('Provided file is not a bmp file.')
-        header_size = int(np.fromfile(f, dtype='<u4', count=1))
+        header_size = int(np.fromfile(f, dtype='<u4', count=1)[0])
 
         if header_size not in header_sizes.values():
             raise ValueError(
@@ -274,7 +274,8 @@ def imread(filename):
         for name in info.dtype.names:
             info_header[name] = info[name]
 
-        shape = (int(abs(info_header['image_height'])), int(info_header['image_width']))
+        shape = (int(abs(info_header['image_height'][0])),
+                 int(info_header['image_width'][0]))
         if info_header['image_planes'] != 1:
             raise NotImplementedError(
                 "We don't know how to handle more than 1 image plane. "
@@ -299,8 +300,10 @@ def imread(filename):
         color_table_max_shape = int(header['file_offset_to_pixelarray'][0] -
                                     header.nbytes - info.nbytes)
         if info_header['colors_in_color_table'] != 0:
-            color_table_max_shape = min(color_table_max_shape,
-                                        int(info_header['colors_in_color_table']) * 4)
+            color_table_max_shape = min(
+                color_table_max_shape,
+                int(info_header['colors_in_color_table'][0]) * 4
+            )
         color_table_count = min(color_table_max_shape, 2 ** bits_per_pixel * 4)
 
         # Bitfields doesn't use a color table
@@ -365,7 +368,7 @@ def _decode_32bpp(f, header, info_header, color_table, shape, row_size):
     else:
         bitfields = [0x0000FF00, 0x00FF0000, 0xFF000000]
 
-    f.seek(int(header['file_offset_to_pixelarray']))
+    f.seek(int(header['file_offset_to_pixelarray'][0]))
 
     image_size = row_size * shape[0]
     if (compression == 'BI_BITFIELDS' and
@@ -419,7 +422,7 @@ def _decode_32bpp(f, header, info_header, color_table, shape, row_size):
 
 def _decode_1bpp(f, header, info_header, color_table,
                  shape, row_size):
-    f.seek(int(header['file_offset_to_pixelarray']))
+    f.seek(int(header['file_offset_to_pixelarray'][0]))
     packed_image = np.fromfile(f, dtype='<u1',
                                count=row_size * shape[0]).reshape(-1, row_size)
     if info_header['image_height'] > 0:
@@ -435,7 +438,7 @@ def _decode_1bpp(f, header, info_header, color_table,
 
 def _decode_24bpp(f, header, info_header, color_table,
                   shape, row_size):
-    f.seek(int(header['file_offset_to_pixelarray']))
+    f.seek(int(header['file_offset_to_pixelarray'][0]))
     image = np.fromfile(f, dtype='<u1',
                         count=row_size * shape[0]).reshape(-1, row_size)
     if info_header['image_height'] > 0:
@@ -448,7 +451,7 @@ def _decode_24bpp(f, header, info_header, color_table,
 
 def _decode_8bpp(f, header, info_header, color_table,
                  shape, row_size):
-    f.seek(int(header['file_offset_to_pixelarray']))
+    f.seek(int(header['file_offset_to_pixelarray'][0]))
     image = np.fromfile(f, dtype='<u1',
                         count=row_size * shape[0]).reshape(-1, row_size)
     if info_header['image_height'] > 0:
@@ -466,7 +469,7 @@ def _decode_8bpp(f, header, info_header, color_table,
 
 def _decode_4bpp(f, header, info_header, color_table,
                  shape, row_size):
-    f.seek(int(header['file_offset_to_pixelarray']))
+    f.seek(int(header['file_offset_to_pixelarray'][0]))
     packed_image = np.fromfile(f, dtype='<u1',
                                count=row_size * shape[0]).reshape(-1, row_size)
     if info_header['image_height'] > 0:
@@ -500,7 +503,7 @@ def _decode_16bpp(f, header, info_header, color_table,
     else:
         bitfields = BITFIELDS_555
 
-    f.seek(int(header['file_offset_to_pixelarray']))
+    f.seek(int(header['file_offset_to_pixelarray'][0]))
 
     image_size = shape[0] * row_size
     image = np.fromfile(f, dtype='<u2',
