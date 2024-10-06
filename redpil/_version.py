@@ -480,6 +480,13 @@ def get_versions():
     # __file__, we can work backwards from there to the root. Some
     # py2exe/bbfreeze/non-CPython implementations don't do __file__, in which
     # case we can only use expanded keywords.
+    if 'REDPIL_GIT_DESCRIBE' in os.environ:
+        return {
+            "version": os.environ['REDPIL_GIT_DESCRIBE'],
+            "full-revisionid": None,
+            "dirty": None,
+            "error": "unable to compute version", "date": None
+        }
 
     cfg = get_config()
     verbose = cfg.verbose

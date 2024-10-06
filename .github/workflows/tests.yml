@@ -35,18 +35,20 @@ jobs:
 
       - name: Install dependencies
         run: |
-          export RO_JSON_GIT_DESCRIBE=${{ steps.ghd.outputs.describe }}
+          export REDPIL_GIT_DESCRIBE=${{ steps.ghd.outputs.describe }}
           python -m pip install --upgrade pip
           pip install setuptools pytest pathlib
           pip install numpy pillow
 
       - name: Install package
         run: |
+          export REDPIL_GIT_DESCRIBE=${{ steps.ghd.outputs.describe }}
           python -m pip install . -vvv
           python -c "import redpil; print(redpil.__version__)"
 
       - name: Run tests
         run: |
+          export REDPIL_GIT_DESCRIBE=${{ steps.ghd.outputs.describe }}
           python --version
           pip check
           pytest -v --strict
