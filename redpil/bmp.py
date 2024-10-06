@@ -452,7 +452,6 @@ def _decode_24bpp(f, header, info_header, color_table,
 def _decode_8bpp(f, header, info_header, color_table,
                  shape, row_size):
     f.seek(int(header['file_offset_to_pixelarray'][0]))
-    print(row_size.__class__)
     image = np.fromfile(
         f, dtype='<u1',
         count=row_size * shape[0]

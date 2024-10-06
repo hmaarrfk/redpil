@@ -79,14 +79,12 @@ def test_bool_image(tmpdir, shape, backend):
     img = np.random.randint(2, size=shape, dtype=np.bool_)
     img[0, 0] = False
     img[-1, -1] = True
-    print(img)
     imwrite(tmpfile, img)
 
     if backend == 'pillow':
         img_read = np.asarray(Image.open(tmpfile).convert('L'))
     else:
         img_read = imread(tmpfile)
-    print(img_read)
     assert img_read[0, 0] == 0
     assert img_read[-1, -1] == 255
 
