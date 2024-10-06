@@ -299,7 +299,7 @@ def imread(filename):
 
         color_table_max_shape = int(header['file_offset_to_pixelarray'][0] -
                                     header.nbytes - info.nbytes)
-        if int(info_header['colors_in_color_table']) != 0:
+        if int(info_header['colors_in_color_table'][0]) != 0:
             color_table_max_shape = min(
                 color_table_max_shape,
                 int(info_header['colors_in_color_table'][0]) * 4
