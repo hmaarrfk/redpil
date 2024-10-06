@@ -288,7 +288,7 @@ def imread(filename):
                 "We only handle images with compression format {}. "
                 "Got compression format {}.".format(
                     implemented_compressions, compression))
-        bits_per_pixel = info_header['bits_per_pixel'][0]
+        bits_per_pixel = int(info_header['bits_per_pixel'][0])
         if bits_per_pixel not in _decoders.keys():
             raise NotImplementedError(
                 "We only support images with one of {} bits per "
@@ -299,7 +299,7 @@ def imread(filename):
 
         color_table_max_shape = int(header['file_offset_to_pixelarray'][0] -
                                     header.nbytes - info.nbytes)
-        if info_header['colors_in_color_table'] != 0:
+        if int(info_header['colors_in_color_table']) != 0:
             color_table_max_shape = min(
                 color_table_max_shape,
                 int(info_header['colors_in_color_table'][0]) * 4
